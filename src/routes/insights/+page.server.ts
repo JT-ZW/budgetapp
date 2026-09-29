@@ -2,14 +2,14 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 function minor(value: string): bigint { const normalized = String(value).trim(); const negative = normalized.startsWith('-'); const [whole, fraction = ''] = normalized.replace(/^-/, '').split('.'); const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); return negative ? -amount : amount; }
 function decimal(value: bigint): string { const sign = value < 0n ? '-' : ''; const n = value < 0n ? -value : value; return `${sign}${n / 100n}.${String(n % 100n).padStart(2, '0')}`; }
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.supabase) redirect(303, '/');
   const { data: auth, error: authError } = await locals.supabase.auth.getUser(); if (authError || !auth.user) redirect(303, '/');
   const now = new Date(); const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)); const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
   const startString = start.toISOString(); const endString = new Date(Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)).toISOString();
   const [groupsResult, accountsResult, categoriesResult, txResult, balancesResult] = await Promise.all([
     locals.supabase.from('budget_app_wallet_groups').select('id,name,kind,archived_at'),
-    locals.supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,archived_at'),
+    locals.supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,opening_balance,archived_at'),
     locals.supabase.from('budget_app_categories').select('id,name,kind'),
     locals.supabase.from('budget_app_transactions').select('kind,account_id,amount,fee_amount,category_id,occurred_at').gte('occurred_at', startString).lt('occurred_at', endString).order('occurred_at'),
     locals.supabase.rpc('budget_app_get_account_balances')
@@ -52,5 +52,93 @@ export const load: PageServerLoad = async ({ locals }) => {
   const hasMovement = monthRows.some((month) => ['USD', 'ZIG'].some((currency) => minor(month[currency as 'USD' | 'ZIG'].income) > 0n || minor(month[currency as 'USD' | 'ZIG'].spending) > 0n));
   const topCategories = ['USD', 'ZIG'].flatMap((currency) => [...categorySpend.entries()].filter(([key]) => key.startsWith(`${currency}:`)).map(([key, value]) => ({ currency, name: key.slice(currency.length + 1), amount: decimal(value) })).sort((a, b) => minor(b.amount) > minor(a.amount) ? 1 : minor(b.amount) < minor(a.amount) ? -1 : 0).slice(0, 5));
   const walletRows = [...walletActivity.values()].map((w) => ({ ...w, income: decimal(w.income), spending: decimal(w.spending) })).sort((a, b) => a.group.localeCompare(b.group) || a.currency.localeCompare(b.currency));
-  return { months: monthRows, topCategories, wallets: walletRows, balances: { USD: decimal(currentBalances.USD), ZIG: decimal(currentBalances.ZIG) }, hasMovement, periodStart: startString.slice(0, 10), loadError: groupsResult.error?.message ?? accountsResult.error?.message ?? categoriesResult.error?.message ?? txResult.error?.message ?? balancesResult.error?.message ?? null };
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+  const dateParam = (name: string, fallback: string) => {
+    const value = url.searchParams.get(name) ?? fallback;
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? value : fallback;
+  };
+  const statementFrom = dateParam('from', defaultFrom);
+  const statementTo = dateParam('to', today);
+  const statementMode = ['both', 'income', 'expense'].includes(url.searchParams.get('activity') ?? '') ? url.searchParams.get('activity') as 'both' | 'income' | 'expense' : 'both';
+  const visibleAccounts = (accountsResult.data ?? []).filter((account: any) => groups[account.wallet_group_id]);
+  const statementWalletMap = new Map<string, any>();
+  for (const account of visibleAccounts as any[]) {
+    const group = groups[account.wallet_group_id];
+    const key = `${account.wallet_group_id}:${account.currency}`;
+    const wallet = statementWalletMap.get(key) ?? { key, walletGroupId: account.wallet_group_id, groupName: group.name, currency: account.currency, accountIds: [], openingBalance: 0n, archived: true };
+    wallet.accountIds.push(account.id);
+    wallet.openingBalance += minor(String(account.opening_balance ?? '0'));
+    wallet.archived &&= Boolean(group.archived_at || account.archived_at);
+    statementWalletMap.set(key, wallet);
+  }
+  const statementWallets = [...statementWalletMap.values()].map((wallet) => ({ key: wallet.key, groupName: wallet.groupName, currency: wallet.currency, archived: wallet.archived, label: `${wallet.groupName} · ${wallet.currency === 'USD' ? 'USD' : 'ZiG'}${wallet.archived ? ' · Archived' : ''}` }));
+  const requestedWallet = url.searchParams.get('wallet') ?? '';
+  const statementWallet = statementWalletMap.get(requestedWallet);
+  const statementWalletKey = statementWallet?.key ?? '';
+  const statementWalletLabel = statementWallet ? `${statementWallet.groupName} · ${statementWallet.currency === 'USD' ? 'USD' : 'ZiG'}${statementWallet.archived ? ' · Archived' : ''}` : '';
+  let statement = { walletKey: statementWalletKey, accountName: statementWalletLabel, currency: statementWallet?.currency ?? 'USD', from: statementFrom, to: statementTo, activity: statementMode, opening: '0.00', closing: '0.00', rows: [] as { date: string; description: string; reference: string; type: string; debit: string; credit: string; balance: string }[], error: '' };
+  if (statementWallet && statementFrom <= statementTo) {
+    const accountIds = Array.isArray(statementWallet.accountIds) ? statementWallet.accountIds as string[] : [];
+    if (accountIds.length === 0) statement.error = 'No wallet accounts are available for this statement.';
+    else {
+    const projection = 'id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at,created_at';
+    const accountIdList = accountIds.join(',');
+    const accountIdSet = new Set(accountIds);
+    const transactionFilter = () => locals.supabase!.from('budget_app_transactions').select(projection).or(`account_id.in.(${accountIdList}),destination_account_id.in.(${accountIdList})`).order('occurred_at', { ascending: true }).order('created_at', { ascending: true });
+    const loadRows = async (from?: string, until?: string) => {
+      const rows: any[] = [];
+      let offset = 0;
+      while (true) {
+        let query: any = transactionFilter();
+        if (from) query = query.gte('occurred_at', from);
+        if (until) query = query.lt('occurred_at', until);
+        const result = await query.range(offset, offset + 999);
+        if (result.error) return { data: rows, error: result.error };
+        rows.push(...(result.data ?? []));
+        if ((result.data ?? []).length < 1000) return { data: rows, error: null };
+        offset += 1000;
+      }
+    };
+    const [beforeResult, rangeResult] = await Promise.all([
+      loadRows(undefined, `${statementFrom}T00:00:00.000Z`),
+      loadRows(`${statementFrom}T00:00:00.000Z`, `${new Date(Date.parse(`${statementTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`)
+    ]);
+    if (beforeResult.error || rangeResult.error) statement.error = beforeResult.error?.message ?? rangeResult.error?.message ?? 'Could not load this statement.';
+    else {
+      let running = minor(statementWallet.openingBalance);
+      const categoryMap = new Map<string, string>((categoriesResult.data ?? []).map((c: any) => [c.id, c.name]));
+      const apply = (row: any, collect: boolean) => {
+        const source = accountIdSet.has(row.account_id);
+        const destination = Boolean(row.destination_account_id && accountIdSet.has(row.destination_account_id));
+        let delta = 0n; let type = ''; let description = row.description || '';
+        if (row.kind === 'income' && source) { delta = minor(String(row.amount)); type = 'Income'; }
+        else if (row.kind === 'expense' && source) { delta = -minor(String(row.amount)); type = 'Expense'; }
+        else if (row.kind === 'transfer' && source && destination) { delta = -minor(String(row.fee_amount ?? '0')); type = 'Transfer fee'; }
+        else if (row.kind === 'transfer' && source) { delta = -(minor(String(row.amount)) + minor(String(row.fee_amount ?? '0'))); type = 'Transfer out'; }
+        else if (row.kind === 'transfer' && destination) { delta = minor(String(row.destination_amount ?? '0')); type = 'Transfer in'; }
+        if (!type) return;
+        if (row.kind === 'transfer' && source && destination && delta === 0n) return;
+        running += delta;
+        if (!collect) return;
+        const selected = statementMode === 'both' || (statementMode === 'income' && type === 'Income') || (statementMode === 'expense' && (type === 'Expense' || type === 'Transfer out' || type === 'Transfer fee'));
+        if (!selected) return;
+        const amount = delta < 0n ? -delta : delta;
+        statement.rows.push({ date: String(row.occurred_at), description: description || (row.kind === 'income' ? 'Income' : row.kind === 'expense' ? 'Spending' : type), reference: row.id, type, debit: delta < 0n ? decimal(amount) : '', credit: delta > 0n ? decimal(amount) : '', balance: decimal(running) });
+      };
+      for (const row of beforeResult.data ?? []) apply(row, false);
+      statement.opening = decimal(running);
+      for (const row of rangeResult.data ?? []) apply(row, true);
+      statement.closing = decimal(running);
+      statement.rows = statement.rows.map((row) => ({ ...row, description: row.description || (row.type.startsWith('Transfer') ? row.type : row.type === 'Income' ? 'Income' : 'Spending') }));
+      for (const row of statement.rows) {
+        const original = (rangeResult.data ?? []).find((tx: any) => tx.id === row.reference);
+        if (original?.category_id && !original.description) row.description += ` · ${categoryMap.get(original.category_id) ?? 'Uncategorised'}`;
+        if (original && original.kind === 'transfer' && Number(original.fee_amount) > 0 && row.type === 'Transfer out') row.description += ` (includes fee ${decimal(minor(String(original.fee_amount)))})`;
+      }
+    }
+    }
+  }
+  if (statementWallet && statementFrom > statementTo) statement.error = 'The start date must be on or before the end date.';
+  return { months: monthRows, topCategories, wallets: walletRows, balances: { USD: decimal(currentBalances.USD), ZIG: decimal(currentBalances.ZIG) }, hasMovement, periodStart: startString.slice(0, 10), statement, statementWallets, loadError: groupsResult.error?.message ?? accountsResult.error?.message ?? categoriesResult.error?.message ?? txResult.error?.message ?? balancesResult.error?.message ?? null };
 };
