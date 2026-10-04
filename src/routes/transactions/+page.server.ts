@@ -52,6 +52,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     page = totalPages;
     transactionsResult = await transactionQuery(page);
   }
+  const movementWalletIds = selectedWallet ? walletAccountIds : allActiveWalletAccounts.map((account) => account.id);
+  const investmentMovementsResult = movementWalletIds.length
+    ? await supabase.from('budget_app_investment_cash_movements').select('id,kind,amount,description,occurred_at,wallet_account_id,investment_account:budget_app_investment_accounts(name)').in('wallet_account_id', movementWalletIds).order('occurred_at', { ascending: false }).limit(25)
+    : { data: [], error: null };
   return {
     accounts: allActiveWalletAccounts,
     groups: activeGroups,
@@ -61,9 +65,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     pageSize,
     totalTransactions,
     totalPages,
+    investmentMovements: investmentMovementsResult.data ?? [],
     walletFilter: selectedWallet?.id ?? '',
     walletFilterName: selectedWallet?.name ?? '',
-    loadError: accountsResult.error?.message ?? groupsResult.error?.message ?? categoriesResult.error?.message ?? transactionsResult.error?.message ?? null
+    loadError: accountsResult.error?.message ?? groupsResult.error?.message ?? categoriesResult.error?.message ?? transactionsResult.error?.message ?? investmentMovementsResult.error?.message ?? null
   };
 };
 

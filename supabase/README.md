@@ -9,4 +9,10 @@
 
 The initial migration creates Personal with USD and ZiG EcoCash, Bank, and Cash accounts, plus a Transfer fees category when an account is created. Project wallets should be created through the `create_project_wallet` database function so both currency accounts are created together.
 
+## Investments
+
+Apply `migrations/0002_investments.sql` after the three setup scripts in the root README. Investment accounts keep their own currency and cash movements. Deposits and withdrawals are excluded from household income and spending; the account balance RPC includes them as wallet transfers. VFEX buys are retained as individual lots, sells allocate lots FIFO, and buy/sell charges affect cost basis and net proceeds. Counter closing prices and forex closing equity are manual daily entries; no broker integration or market-price feed is included.
+
+Then apply `migrations/0003_investment_opening_balances.sql`. This adds an opening-capital baseline for already-active accounts and lets the user import a current stock position with its original buy price and current price. Opening records do not subtract from a personal wallet. New deposits and withdrawals remain linked wallet transfers.
+
 Balances are derived from the ledger: opening balance + income + incoming transfer amounts − expenses − outgoing transfer principal − transfer fees. USD and ZiG totals stay separate; the app will not add unlike currencies into a misleading combined balance.

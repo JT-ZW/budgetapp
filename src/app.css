@@ -597,3 +597,124 @@ input:focus { border-color: #769381; box-shadow: 0 0 0 3px rgba(58,111,84,.09); 
  .statement-table { font-size:9pt!important; }
  .statement-table th,.statement-table td { padding:7px!important; }
 }
+
+/* Investments */
+.investment-content { max-width: 1260px; }
+.investment-subnav { position:sticky; top:0; z-index:4; display:flex; align-items:center; gap:5px; min-height:58px; overflow-x:auto; padding:8px clamp(20px,4vw,55px); border-bottom:1px solid #e9ece7; background:rgba(255,255,255,.96); backdrop-filter:blur(12px); scrollbar-width:thin; }
+.investment-subnav a { flex:0 0 auto; padding:10px 15px; border-radius:9px; color:#718078; font-size:11px; font-weight:700; text-decoration:none; transition:background .15s,color .15s; }
+.investment-subnav a:hover { color:#20342d; background:#f5f7f4; }
+.investment-subnav a.active { color:#17493b; background:#edf3ee; }
+.investment-quicklinks { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:24px 0 30px; }
+.investment-quicklinks a { display:flex; align-items:center; gap:10px; min-width:0; padding:14px; border:1px solid #e5e9e3; border-radius:13px; color:#23654f; background:#fff; text-decoration:none; }
+.investment-quicklinks a:hover { border-color:#b9cdbb; background:#fbfcf9; }
+.investment-quicklinks a>span:nth-child(2) { display:grid; flex:1; min-width:0; gap:4px; }
+.investment-quicklinks strong { color:#20342d; font-size:10px; }
+.investment-quicklinks small { overflow:hidden; color:#829087; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.investment-quicklinks a>span:last-child { color:#718078; font-size:9px; font-weight:700; white-space:nowrap; }
+.investment-account-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin:22px 0 30px; }
+.investment-account-card { position:relative; overflow:hidden; padding:22px; border:1px solid #e4eae1; border-radius:18px; background:#fff; box-shadow:0 10px 26px rgba(27,57,45,.04); }
+.investment-account-card::before { position:absolute; inset:0 0 auto; height:4px; content:""; background:linear-gradient(90deg,#164b3c,#93b94d); }
+.forex-account-card::before { background:linear-gradient(90deg,#b5893e,#e4cd8a); }
+.investment-card-head { display:flex; align-items:center; gap:9px; }
+.investment-icon { display:grid; flex:0 0 38px; width:38px; height:38px; place-items:center; border-radius:12px; color:#23654f; background:#edf4ed; }
+.investment-kind { color:#718078; font-size:11px; font-weight:700; }
+.investment-card-head .currency-badge { margin-left:auto; }
+.investment-account-card h2 { margin:15px 0 4px; font-size:17px; }
+.investment-total { margin:0; color:#1e3a2f; font-size:27px; font-weight:800; letter-spacing:-1px; }
+.investment-total-caption { margin:4px 0 16px; color:#829087; font-size:10px; }
+.investment-card-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:13px 0; border-top:1px solid #edf0eb; border-bottom:1px solid #edf0eb; }
+.investment-card-stats>div { display:grid; gap:5px; }
+.investment-card-stats span { color:#849088; font-size:9px; }
+.investment-card-stats strong { font-size:12px; }
+.gain { color:#347951!important; }
+.loss { color:#a85843!important; }
+.investment-mini-list { display:grid; gap:9px; margin-top:13px; }
+.investment-mini-list>div { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:10px; }
+.investment-mini-list>div>span { display:grid; gap:3px; color:#6f7d74; }
+.investment-mini-list small,.investment-table small { display:block; margin-top:3px; color:#929d95; font-size:9px; }
+.investment-empty-line { margin:0; color:#8a968e; font-size:10px; line-height:1.5; }
+.investment-empty { display:flex; align-items:center; gap:14px; margin:22px 0 30px; padding:22px; border:1px dashed #cad8c9; border-radius:16px; background:#fbfcf9; }
+.investment-empty h2 { margin:0 0 5px; font-size:15px; }
+.investment-empty p { margin:0; color:#76847b; font-size:11px; line-height:1.6; }
+.investment-section { margin:24px 0; }
+.investment-form { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.investment-form label { display:grid; gap:6px; min-width:0; }
+.investment-form input,.investment-form select { width:100%; min-width:0; min-height:42px; margin:0; padding:9px 11px; border:1px solid #dfe5de; border-radius:9px; color:#20342d; background:#fbfcf9; font:inherit; font-size:12px; }
+.investment-form .form-footer { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; }
+.investment-form .form-footer p { margin:0; color:#7b887f; font-size:10px; }
+.investment-form .primary-button { min-height:41px; padding:0 14px; font-size:11px; }
+.compact-investment-form { grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; }
+.investment-table-wrap { overflow-x:auto; border:1px solid #e6ebe4; border-radius:13px; background:#fff; }
+.investment-table { width:100%; border-collapse:collapse; font-size:11px; white-space:nowrap; }
+.investment-table th,.investment-table td { padding:13px 14px; border-bottom:1px solid #edf0eb; text-align:left; }
+.investment-table th { color:#78877e; background:#fbfcf9; font-size:9px; letter-spacing:.04em; text-transform:uppercase; }
+.investment-table td:not(:first-child) { text-align:right; }
+.investment-table td:first-child strong { font-size:11px; }
+.investment-table-empty { margin:0; padding:20px; color:#89968e; text-align:center; font-size:11px; }
+.investment-activity-list { overflow:hidden; border:1px solid #e7ece5; border-radius:13px; background:#fff; }
+.investment-activity-row { display:flex; align-items:center; gap:11px; padding:12px 14px; border-bottom:1px solid #edf0eb; }
+.investment-activity-row:last-child { border-bottom:0; }
+.investment-activity-icon { display:grid; flex:0 0 31px; width:31px; height:31px; place-items:center; border-radius:10px; color:#23654f; background:#edf4ed; }
+.investment-activity-main { display:grid; flex:1; min-width:0; gap:4px; }
+.investment-activity-main strong { overflow:hidden; color:#283c32; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.investment-activity-main span { overflow:hidden; color:#849087; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.investment-activity-amount { color:#30463a; font-size:10px; white-space:nowrap; }
+.investment-sparkline { display:grid; grid-template-columns:1fr 160px; align-items:center; gap:12px; margin-top:13px; padding-top:11px; border-top:1px solid #edf0eb; color:#829087; font-size:9px; }
+.investment-sparkline svg,.counter-sparkline { width:160px; height:40px; }
+.investment-sparkline polyline,.counter-sparkline polyline { fill:none; stroke:#4d8965; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.counter-sparkline { display:block; height:25px; margin-top:5px; }
+.investment-analysis-section { margin:26px 0 30px; }
+.investment-analysis-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; }
+.investment-analysis-card { padding:19px; border:1px solid #e5e9e3; border-radius:16px; background:#fff; box-shadow:0 8px 24px rgba(27,57,45,.035); }
+.investment-analysis-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.investment-analysis-head .eyebrow { margin-bottom:5px; font-size:8px; }
+.investment-analysis-head h3 { margin:0; font-size:15px; }
+.investment-analysis-value { margin:15px 0 13px; color:#1e3a2f; font-size:24px; font-weight:800; letter-spacing:-.7px; }
+.investment-analysis-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px 0; border-top:1px solid #edf0eb; border-bottom:1px solid #edf0eb; }
+.investment-analysis-stats>div { display:grid; gap:5px; }
+.investment-analysis-stats span { color:#829087; font-size:9px; }
+.investment-analysis-stats strong { font-size:11px; }
+.investment-analysis-chart { display:grid; grid-template-columns:1fr minmax(120px,220px); align-items:center; gap:8px; margin-top:13px; }
+.investment-analysis-chart>div { display:grid; gap:4px; }
+.investment-analysis-chart>div strong { color:#385345; font-size:10px; }
+.investment-analysis-chart>div small { color:#89958e; font-size:9px; }
+.investment-analysis-chart svg,.investment-position-analysis svg { width:100%; height:60px; }
+.investment-analysis-chart polyline,.investment-position-analysis polyline { fill:none; stroke:#4d8965; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.investment-analysis-history { display:grid; gap:0; margin-top:10px; }
+.investment-analysis-history>div { display:flex; justify-content:space-between; gap:8px; padding:7px 0; border-top:1px solid #f0f2ee; font-size:9px; }
+.investment-analysis-history span { color:#829087; }
+.investment-analysis-positions { display:grid; gap:11px; margin-top:13px; }
+.investment-position-analysis { display:grid; grid-template-columns:1fr auto; gap:6px 10px; align-items:center; padding-top:10px; border-top:1px solid #edf0eb; }
+.investment-position-analysis>div:first-child,.investment-position-values { display:grid; gap:4px; }
+.investment-position-analysis strong { font-size:10px; }
+.investment-position-analysis small { color:#829087; font-size:8px; }
+.investment-position-values { justify-items:end; }
+.investment-position-analysis svg,.investment-no-history { grid-column:1/-1; }
+.investment-no-history { margin:0; color:#89958e; font-size:9px; }
+.opening-capital-form { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:6px 9px; margin-top:14px; padding-top:12px; border-top:1px solid #edf0eb; }
+.opening-capital-form label { display:grid; gap:5px; margin:0; font-size:9px; }
+.opening-capital-form input { min-height:37px; height:37px; margin:0; padding:7px 9px; font-size:11px; }
+.opening-capital-form button { min-height:37px; font-size:9px; }
+.opening-capital-form>small { grid-column:1/-1; color:#87938b; font-size:8px; }
+@media(max-width:760px) {
+ .investment-account-grid { grid-template-columns:1fr; gap:11px; }
+ .investment-subnav { min-height:52px; padding:6px 12px; }
+ .investment-subnav a { padding:9px 12px; }
+ .investment-quicklinks { grid-template-columns:1fr 1fr; gap:8px; }
+ .investment-quicklinks a { padding:11px 9px; gap:7px; }
+ .investment-quicklinks a>span:last-child { display:none; }
+ .investment-account-card { padding:16px; }
+ .investment-total { font-size:23px; }
+ .investment-form,.compact-investment-form { grid-template-columns:1fr; }
+ .investment-form .form-footer { align-items:stretch; flex-direction:column; }
+ .investment-form .form-footer .primary-button { width:100%; }
+ .investment-empty { align-items:flex-start; padding:16px; }
+ .investment-activity-row { padding:11px 9px; }
+ .investment-activity-amount { font-size:9px; }
+ .investment-sparkline { grid-template-columns:1fr; }
+ .investment-analysis-grid { grid-template-columns:1fr; }
+ .investment-analysis-card { padding:15px; }
+ .investment-analysis-stats { gap:5px; }
+ .investment-analysis-stats strong { font-size:9px; }
+ .investment-analysis-chart { grid-template-columns:1fr; }
+}

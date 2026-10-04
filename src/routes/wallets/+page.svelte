@@ -21,7 +21,7 @@
     <div class="sidebar-label side-label-spaced">Your money</div>
     <a class="side-link active" href="/wallets"><CreditCard size={18}/> Wallets <span class="nav-count">{data.groups.length}</span></a>
     <a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a>
-    <a class="side-link" href="/budgets"><Target size={18}/> Budgets</a>
+    <a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a>
     <a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a>
     <div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div>
   </aside>
@@ -34,5 +34,5 @@
       <footer class="dashboard-footer"><span>USD and ZiG are always shown separately.</span><span>Opening balances and recorded activity are reflected here.</span></footer>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a class="mobile-nav-active" href="/wallets"><CreditCard size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a class="mobile-nav-active" href="/wallets"><CreditCard size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a href="/investments"><WalletCards size={18}/><span>Investments</span></a><a href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
 </div>
