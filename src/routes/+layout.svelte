@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import InvestmentOperationModal from '$lib/components/InvestmentOperationModal.svelte';
 	let { children } = $props();
 </script>
 
@@ -9,3 +10,4 @@
 </svelte:head>
 
 {@render children()}
+<InvestmentOperationModal />

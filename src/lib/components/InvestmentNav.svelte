@@ -5,7 +5,8 @@
     { id: 'accounts', label: 'Accounts', href: '/investments/accounts' },
     { id: 'stocks', label: 'Stocks', href: '/investments/stocks' },
     { id: 'forex', label: 'Forex', href: '/investments/forex' },
-    { id: 'transfers', label: 'Transfers', href: '/investments/transfers' }
+    { id: 'transfers', label: 'Transfers', href: '/investments/transfers' },
+    { id: 'analysis', label: 'Analysis', href: '/investments/analysis' }
   ];
 </script>
 

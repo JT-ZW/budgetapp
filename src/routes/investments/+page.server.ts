@@ -66,13 +66,18 @@ export const load: PageServerLoad = async ({ locals }) => {
     const netContribution = openingCapital + openingPositionCost + deposits - withdrawals;
     const currentCash = openingCapital + accountMovements.reduce((n, m) => n + (m.kind === 'deposit' ? 1 : -1) * Number(m.amount), 0) + accountTrades.filter((t) => t.kind === 'buy' || t.kind === 'sell').reduce((n, t) => n + (t.kind === 'buy' ? -1 : 1) * (Number(t.quantity) * Number(t.unit_price)) - Number(t.fees), 0);
     const accountPositions = positions.filter((p) => p.investment_account_id === account.id && p.shares > 0);
-    const sharesValue = accountPositions.reduce((n, p) => n + (p.marketValue ?? 0), 0);
+    const pricedSharesValue = accountPositions.reduce((n, p) => n + (p.marketValue ?? 0), 0);
+    const unpricedPositions = accountPositions.filter((p) => p.marketValue === null);
+    const unpricedPositionCost = unpricedPositions.reduce((n, p) => n + p.costBasis, 0);
+    // Until a close is entered, carry those shares at their remaining cost basis.
+    // This prevents a missing quote from being reported as a 100% loss.
+    const sharesValue = pricedSharesValue + unpricedPositionCost;
     const forexFlowSinceClose = latestValuation ? accountMovements.filter((m) => String(m.occurred_at).slice(0, 10) > latestValuation.valuation_date).reduce((n, m) => n + (m.kind === 'deposit' ? 1 : -1) * Number(m.amount), 0) : 0;
     const totalValue = account.kind === 'forex' ? Number(latestValuation?.closing_equity ?? openingCapital) + forexFlowSinceClose : currentCash + sharesValue;
     const realized = accountTrades.filter((t) => t.kind === 'sell').reduce((n, t) => n + Number(t.realized_profit ?? 0), 0);
-    const stockUnrealized = accountPositions.reduce((n, p) => n + (p.unrealized ?? 0), 0);
+    const stockUnrealized = accountPositions.filter((p) => p.unrealized !== null).reduce((n, p) => n + Number(p.unrealized), 0);
     const gain = account.kind === 'forex' ? totalValue + withdrawals - deposits - openingCapital : sharesValue + currentCash - deposits + withdrawals - openingCapital - openingPositionCost;
-    return { ...account, movements: accountMovements, latestValuation, valuationHistory: valuations.filter((v) => v.investment_account_id === account.id).slice(0, 30), deposits, withdrawals, netContribution, currentCash, positions: accountPositions, sharesValue, totalValue, realized, stockUnrealized, gain,
+    return { ...account, movements: accountMovements, latestValuation, valuationHistory: valuations.filter((v) => v.investment_account_id === account.id).slice(0, 30), deposits, withdrawals, netContribution, currentCash, positions: accountPositions, sharesValue, unpricedPositionCost, unpricedPositionCount: unpricedPositions.length, valuationPending: account.kind === 'stocks' && unpricedPositions.length > 0, totalValue, realized, stockUnrealized, gain,
       returnPercent: netContribution ? gain / netContribution * 100 : null };
   });
   const loadError = [accountsResult, walletsResult, movementsResult, countersResult, tradesResult, pricesResult, valuesResult, prices].find((r: any) => r.error)?.error?.message ?? null;
@@ -91,7 +96,7 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.rpc('budget_app_create_investment_account', { account_name: name, account_kind: kind, account_currency: currency, funding_wallet_id: null, initial_capital: capital });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not create this investment account.'); }
-    redirect(303, '/investments/accounts');
+    return { success: true, message: 'Investment account created.' };
   },
   updateOpeningCapital: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -102,34 +107,55 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.rpc('budget_app_set_investment_opening_capital', { p_account_id: accountId, p_amount: capital });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not update this opening amount.'); }
-    redirect(303, '/investments/accounts');
+    return { success: true, message: 'Opening amount saved.' };
   },
-  addCounter: async ({ request, locals }) => {
+  importExisting: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
     const { data: auth, error } = await locals.supabase.auth.getUser(); if (error || !auth.user) redirect(303, '/');
     const form = await request.formData();
     try {
-      const accountId = text(form, 'investment_account_id'); const ticker = text(form, 'ticker').toUpperCase(); const company = text(form, 'company_name');
+      const accountId = text(form, 'investment_account_id'); const company = text(form, 'counter_name'); const ticker = company.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9.-]/g, '').slice(0, 20);
       const { data: account } = await locals.supabase.from('budget_app_investment_accounts').select('kind').eq('id', accountId).eq('owner_id', auth.user.id).maybeSingle();
       if (!account || account.kind !== 'stocks') throw new Error('Choose a stocks account.');
-      if (!/^[A-Z0-9.-]{1,20}$/.test(ticker) || !company) throw new Error('Enter a counter and company name.');
-      const openingQuantity = amount(text(form, 'opening_quantity') || '0', true, 6);
-      const buyPrice = text(form, 'opening_buy_price'); const currentPrice = text(form, 'current_price');
-      const openingFees = amount(text(form, 'opening_fees') || '0', true);
-      if (Number(openingQuantity) > 0 && (!buyPrice || !currentPrice)) throw new Error('Enter the original purchase price and current price for the existing shares.');
-      const openingData = Number(openingQuantity) > 0 ? {
-        buyPrice: amount(buyPrice, false, 6), currentPrice: amount(currentPrice, false, 6),
-        acquired: dateValue(text(form, 'acquired_on')), priceDate: dateValue(text(form, 'price_date'))
-      } : null;
-      const { error: saveError } = await locals.supabase.from('budget_app_investment_counters').insert({ owner_id: auth.user.id, investment_account_id: accountId, ticker, company_name: company });
+      const qty = amount(text(form, 'quantity'), false, 6); const buyPrice = amount(text(form, 'unit_price'), false, 6);
+      const fees = amount(text(form, 'fees') || '0', true); const acquired = dateValue(text(form, 'occurred_on'));
+      const { error: saveError } = await locals.supabase.rpc('budget_app_import_stock_holding', {
+        p_investment_account_id: accountId, p_ticker: ticker, p_company_name: company,
+        p_quantity: qty, p_buy_price: buyPrice, p_fees: fees, p_occurred_at: new Date(`${acquired}T12:00:00Z`).toISOString()
+      });
       if (saveError) throw new Error(saveError.message);
-      if (openingData) {
-        const { data: counter } = await locals.supabase.from('budget_app_investment_counters').select('id').eq('owner_id', auth.user.id).eq('investment_account_id', accountId).eq('ticker', ticker).single();
-        const { error: openingError } = await locals.supabase.rpc('budget_app_add_opening_position', { p_counter_id: counter.id, p_quantity: openingQuantity, p_buy_price: openingData.buyPrice, p_fees: openingFees, p_current_price: openingData.currentPrice, p_acquired_at: new Date(`${openingData.acquired}T12:00:00Z`).toISOString(), p_price_date: openingData.priceDate });
-        if (openingError) throw new Error(openingError.message);
-      }
-    } catch (err) { return handleError(err, 'Could not add this counter.'); }
-    redirect(303, '/investments/stocks');
+    } catch (err) { return handleError(err, 'Could not import this existing holding.'); }
+    return { success: true, message: 'Existing shares imported without changing your personal wallet.' };
+  },
+  newPurchase: async ({ request, locals }) => {
+    if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
+    const { data: auth, error } = await locals.supabase.auth.getUser(); if (error || !auth.user) redirect(303, '/');
+    const form = await request.formData();
+    try {
+      const accountId = text(form, 'investment_account_id'); const walletId = text(form, 'wallet_account_id');
+      const company = text(form, 'counter_name'); const ticker = company.toUpperCase().replace(/\s+/g, '-').replace(/[^A-Z0-9.-]/g, '').slice(0, 20);
+      const qty = amount(text(form, 'quantity'), false, 6); const price = amount(text(form, 'unit_price'), false, 6);
+      const fees = amount(text(form, 'fees') || '0', true); const occurred = dateValue(text(form, 'occurred_on'));
+      const fundingSource = text(form, 'funding_source');
+      let saveError;
+      if (fundingSource === 'brokerage') {
+        const result = await locals.supabase.rpc('budget_app_buy_stock_from_brokerage', {
+          p_investment_account_id: accountId, p_ticker: ticker, p_company_name: company,
+          p_quantity: qty, p_unit_price: price, p_fees: fees,
+          p_occurred_at: new Date(`${occurred}T12:00:00Z`).toISOString(), p_description: text(form, 'description')
+        });
+        saveError = result.error;
+      } else if (fundingSource === 'wallet') {
+        const result = await locals.supabase.rpc('budget_app_buy_stock_from_wallet', {
+          p_investment_account_id: accountId, p_wallet_account_id: walletId, p_ticker: ticker,
+          p_company_name: company, p_quantity: qty, p_unit_price: price, p_fees: fees,
+          p_occurred_at: new Date(`${occurred}T12:00:00Z`).toISOString(), p_description: text(form, 'description')
+        });
+        saveError = result.error;
+      } else throw new Error('Choose whether to pay from brokerage cash or a personal wallet.');
+      if (saveError) throw new Error(saveError.message);
+    } catch (err) { return handleError(err, 'Could not save this stock purchase.'); }
+    return { success: true, message: 'Stock purchase recorded. The wallet debit includes the share cost and transfer charges.' };
   },
   openingLot: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -142,7 +168,7 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.rpc('budget_app_add_opening_position', { p_counter_id: counter, p_quantity: qty, p_buy_price: buyPrice, p_fees: fees, p_current_price: currentPrice, p_acquired_at: new Date(`${acquired}T12:00:00Z`).toISOString(), p_price_date: priceDate });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not import this existing purchase lot.'); }
-    redirect(303, '/investments/stocks');
+    return { success: true, message: 'Existing purchase lot imported.' };
   },
   trade: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -154,7 +180,7 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.rpc('budget_app_record_stock_trade', { p_counter_id: counter, p_kind: kind, p_quantity: quantity, p_unit_price: price, p_fees: fees, p_occurred_at: new Date(`${occurred}T12:00:00Z`).toISOString(), p_description: text(form, 'description') });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not save this trade.'); }
-    redirect(303, '/investments/stocks');
+    return { success: true, message: 'Stock trade saved.' };
   },
   price: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -165,7 +191,7 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.from('budget_app_investment_prices').upsert({ owner_id: auth.user.id, counter_id: counter, closing_price: price, price_date: date }, { onConflict: 'counter_id,price_date' });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not save this closing price.'); }
-    redirect(303, '/investments/stocks');
+    return { success: true, message: 'Closing price saved.' };
   },
   valuation: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -176,7 +202,7 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.from('budget_app_forex_valuations').upsert({ owner_id: auth.user.id, investment_account_id: account, closing_equity: equity, valuation_date: date, note: text(form, 'note') }, { onConflict: 'investment_account_id,valuation_date' });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not save this daily value.'); }
-    redirect(303, '/investments/forex');
+    return { success: true, message: 'Daily forex equity saved.' };
   },
   cashMovement: async ({ request, locals }) => {
     if (!locals.supabase) return fail(503, { message: 'Database connection is not configured.' });
@@ -203,6 +229,6 @@ export const actions: Actions = {
       const { error: saveError } = await locals.supabase.from('budget_app_investment_cash_movements').insert({ owner_id: auth.user.id, investment_account_id: accountId, wallet_account_id: walletId, kind, amount: value, occurred_at: new Date(`${date}T12:00:00Z`).toISOString(), description: text(form, 'description') });
       if (saveError) throw new Error(saveError.message);
     } catch (err) { return handleError(err, 'Could not save this transfer.'); }
-    redirect(303, '/investments/transfers');
+    return { success: true, message: 'Investment transfer recorded.' };
   }
 };

@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const categories = Object.fromEntries((categoriesResult.data ?? []).map((c: any) => [c.id, c]));
   const monthKeys = Array.from({ length: 6 }, (_, i) => { const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1)); return { key: d.toISOString().slice(0, 7), label: d.toLocaleDateString('en', { month: 'short' }) }; });
   const monthly = new Map<string, { month: string; currency: string; income: bigint; spending: bigint }>();
-  const categorySpend = new Map<string, bigint>(); const walletActivity = new Map<string, { group: string; currency: string; income: bigint; spending: bigint }>();
+  const categorySpend = new Map<string, { currency: string; name: string; months: Map<string, bigint> }>(); const walletActivity = new Map<string, { group: string; currency: string; income: bigint; spending: bigint }>();
   for (const row of txResult.data ?? []) {
     const account = accounts[row.account_id]; if (!account) continue;
     const key = `${String(row.occurred_at).slice(0, 7)}:${account.currency}`;
@@ -40,10 +40,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (row.kind === 'expense') wallet.spending += minor(String(row.amount));
     if (row.kind === 'transfer') wallet.spending += minor(String(row.fee_amount ?? '0'));
     walletActivity.set(walletKey, wallet);
-    if (String(row.occurred_at).slice(0, 7) === currentMonth.toISOString().slice(0, 7) && (row.kind === 'expense' || row.kind === 'transfer')) {
+    if (row.kind === 'expense' || row.kind === 'transfer') {
       const amount = row.kind === 'expense' ? minor(String(row.amount)) : minor(String(row.fee_amount ?? '0'));
       const categoryName = categories[row.category_id]?.name ?? 'Uncategorised'; const catKey = `${account.currency}:${categoryName}`;
-      categorySpend.set(catKey, (categorySpend.get(catKey) ?? 0n) + amount);
+      const category = categorySpend.get(catKey) ?? { currency: account.currency, name: categoryName, months: new Map<string, bigint>() };
+      const month = String(row.occurred_at).slice(0, 7);
+      category.months.set(month, (category.months.get(month) ?? 0n) + amount);
+      categorySpend.set(catKey, category);
     }
   }
   const monthRows = monthKeys.map((m) => ({ ...m, USD: monthly.get(`${m.key}:USD`) ?? { income: 0n, spending: 0n }, ZIG: monthly.get(`${m.key}:ZIG`) ?? { income: 0n, spending: 0n } })).map((m: any) => ({ month: m.month, label: m.label, USD: { income: decimal(m.USD.income), spending: decimal(m.USD.spending) }, ZIG: { income: decimal(m.ZIG.income), spending: decimal(m.ZIG.spending) } }));
@@ -56,7 +59,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (current != null) currentBalances[account.currency as 'USD' | 'ZIG'] += minor(current);
   }
   const hasMovement = monthRows.some((month) => ['USD', 'ZIG'].some((currency) => minor(month[currency as 'USD' | 'ZIG'].income) > 0n || minor(month[currency as 'USD' | 'ZIG'].spending) > 0n));
-  const topCategories = ['USD', 'ZIG'].flatMap((currency) => [...categorySpend.entries()].filter(([key]) => key.startsWith(`${currency}:`)).map(([key, value]) => ({ currency, name: key.slice(currency.length + 1), amount: decimal(value) })).sort((a, b) => minor(b.amount) > minor(a.amount) ? 1 : minor(b.amount) < minor(a.amount) ? -1 : 0).slice(0, 5));
+  const categoryRows = [...categorySpend.values()].map((category) => ({ currency: category.currency, name: category.name, months: monthKeys.map((month) => ({ key: month.key, label: month.label, amount: decimal(category.months.get(month.key) ?? 0n) })), total: decimal([...category.months.values()].reduce((sum, value) => sum + value, 0n)) }));
+  const topCategories = ['USD', 'ZIG'].flatMap((currency) => categoryRows.filter((category) => category.currency === currency).map((category) => ({ currency, name: category.name, amount: category.months.at(-1)?.amount ?? '0.00' })).filter((category) => minor(category.amount) > 0n).sort((a, b) => minor(b.amount) > minor(a.amount) ? 1 : minor(b.amount) < minor(a.amount) ? -1 : 0).slice(0, 5));
+  const spendAnalysis = ['USD', 'ZIG'].map((currency) => {
+    const monthlySpending = monthRows.map((month) => ({ key: month.month, label: month.label, amount: month[currency as 'USD' | 'ZIG'].spending }));
+    const previousKey = monthKeys.at(-2)?.key;
+    const previousTotal = minor(monthlySpending.at(-2)?.amount ?? '0');
+    const currentTotal = minor(monthlySpending.at(-1)?.amount ?? '0');
+    const categories = categoryRows.filter((category) => category.currency === currency).map((category) => {
+      const current = minor(category.months.at(-1)?.amount ?? '0');
+      const previous = minor(category.months.find((month) => month.key === previousKey)?.amount ?? '0');
+      const delta = current - previous;
+      return { ...category, current: decimal(current), previous: decimal(previous), delta: decimal(delta), share: currentTotal > 0n ? Number(current) / Number(currentTotal) * 100 : 0, changePercent: previous > 0n ? Number(delta) / Number(previous) * 100 : null };
+    });
+    return { currency, currentTotal: decimal(currentTotal), previousTotal: decimal(previousTotal), monthlySpending, currentTop: [...categories].filter((category) => minor(category.current) > 0n).sort((a, b) => minor(b.current) > minor(a.current) ? 1 : minor(b.current) < minor(a.current) ? -1 : 0).slice(0, 5), trends: [...categories].sort((a, b) => minor(b.total) > minor(a.total) ? 1 : minor(b.total) < minor(a.total) ? -1 : 0).slice(0, 5) };
+  });
   const walletRows = [...walletActivity.values()].map((w) => ({ ...w, income: decimal(w.income), spending: decimal(w.spending) })).sort((a, b) => a.group.localeCompare(b.group) || a.currency.localeCompare(b.currency));
   const investmentAccounts = investmentAccountsResult.data ?? [];
   const investmentTrades = tradesResult.data ?? [];
@@ -89,19 +106,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       const soldCost = sells.reduce((sum: number, trade: any) => sum + Number(trade.realized_cost_basis ?? 0), 0);
       const costBasis = totalCost - soldCost;
       const quote = [...investmentPrices].reverse().find((price: any) => price.counter_id === counter.id);
-      const marketValue = quote ? shares * Number(quote.closing_price) : 0;
+      const marketValue = quote ? shares * Number(quote.closing_price) : null;
       const history = investmentPrices.filter((price: any) => price.counter_id === counter.id).map((price: any) => {
         const heldAtDate = lots.filter((lot: any) => String(lot.occurred_at).slice(0,10) <= price.price_date).reduce((sum: number, lot: any) => sum + Number(lot.quantity), 0) - sells.filter((trade: any) => String(trade.occurred_at).slice(0,10) <= price.price_date).reduce((sum: number, trade: any) => sum + Number(trade.quantity), 0);
         return { date: price.price_date, value: heldAtDate * Number(price.closing_price), price: Number(price.closing_price) };
       });
-      return { ...counter, shares, costBasis, marketValue, unrealized: marketValue - costBasis, currentPrice: quote?.closing_price ?? null, history };
+      return { ...counter, shares, costBasis, marketValue, unrealized: marketValue === null ? null : marketValue - costBasis, currentPrice: quote?.closing_price ?? null, history };
     });
     const openingPositionCost = accountTrades.filter((trade: any) => trade.kind === 'opening').reduce((sum: number, trade: any) => sum + Number(trade.quantity) * Number(trade.unit_price) + Number(trade.fees), 0);
     const cash = openingCapital + deposits - withdrawals + accountTrades.filter((trade: any) => ['buy','sell'].includes(trade.kind)).reduce((sum: number, trade: any) => sum + (trade.kind === 'buy' ? -1 : 1) * (Number(trade.quantity) * Number(trade.unit_price)) - Number(trade.fees), 0);
-    const marketValue = positions.reduce((sum: number, position: any) => sum + position.marketValue, 0);
+    const unpricedPositions = positions.filter((position: any) => position.shares > 0 && position.marketValue === null);
+    const unpricedPositionCost = unpricedPositions.reduce((sum: number, position: any) => sum + position.costBasis, 0);
+    const marketValue = positions.reduce((sum: number, position: any) => sum + (position.marketValue ?? (position.shares > 0 ? position.costBasis : 0)), 0);
     const netCapital = openingCapital + openingPositionCost + deposits - withdrawals;
     const profitLoss = marketValue + cash - netCapital;
-    return { ...investmentAccount, totalValue: marketValue + cash, marketValue, cash, netCapital, profitLoss, returnPercent: netCapital ? profitLoss / netCapital * 100 : null, positions, daily: [] };
+    return { ...investmentAccount, totalValue: marketValue + cash, marketValue, cash, netCapital, profitLoss, returnPercent: netCapital ? profitLoss / netCapital * 100 : null, positions, unpricedPositionCost, unpricedPositionCount: unpricedPositions.length, valuationPending: unpricedPositions.length > 0, daily: [] };
   });
   const today = new Date().toISOString().slice(0, 10);
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
@@ -221,5 +240,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }
   }
   if (statementWallet && statementFrom > statementTo) statement.error = 'The start date must be on or before the end date.';
-  return { months: monthRows, topCategories, wallets: walletRows, balances: { USD: decimal(currentBalances.USD), ZIG: decimal(currentBalances.ZIG) }, hasMovement, investmentAnalysis, periodStart: startString.slice(0, 10), statement, statementWallets, loadError: groupsResult.error?.message ?? accountsResult.error?.message ?? categoriesResult.error?.message ?? txResult.error?.message ?? balancesResult.error?.message ?? investmentAccountsResult.error?.message ?? countersResult.error?.message ?? tradesResult.error?.message ?? pricesResult.error?.message ?? forexValuesResult.error?.message ?? investmentMovementsResult.error?.message ?? null };
+  return { months: monthRows, topCategories, spendAnalysis, wallets: walletRows, balances: { USD: decimal(currentBalances.USD), ZIG: decimal(currentBalances.ZIG) }, hasMovement, investmentAnalysis, periodStart: startString.slice(0, 10), statement, statementWallets, loadError: groupsResult.error?.message ?? accountsResult.error?.message ?? categoriesResult.error?.message ?? txResult.error?.message ?? balancesResult.error?.message ?? investmentAccountsResult.error?.message ?? countersResult.error?.message ?? tradesResult.error?.message ?? pricesResult.error?.message ?? forexValuesResult.error?.message ?? investmentMovementsResult.error?.message ?? null };
 };

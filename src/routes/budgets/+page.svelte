@@ -1,6 +1,8 @@
 <script lang="ts">
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Plus, Settings2, WalletCards, Target, Trash2 } from 'lucide-svelte';
   import { decimalToMinorUnits, formatMoney } from '$lib/finance';
+  import { enhance } from '$app/forms';
+  import { handleInvestmentSubmit } from '$lib/investments/feedback';
   import type { Currency } from '$lib/types/finance';
   import type { PageData, ActionData } from './$types';
 
@@ -24,7 +26,7 @@
       {#if data.loadError}<div class="setup-banner"><div><strong>We couldn’t load your targets</strong><p>{data.loadError}. Run the latest Supabase migration, then refresh.</p></div></div>{/if}
       {#if form?.message}<p class="form-alert" role="alert">{form.message}</p>{/if}
       <section class="section-block"><div class="section-heading"><div><p class="eyebrow">Create a target</p><h2>What do you want to track?</h2></div></div>
-        <form method="POST" action="?/save" class="feature-form">
+        <form method="POST" action="?/save" class="feature-form" use:enhance={handleInvestmentSubmit}>
           <label>Wallet<select name="wallet_group_id" required><option value="" disabled selected>Choose a wallet</option>{#each data.groups as group}<option value={group.id}>{group.name} · {group.kind === 'personal' ? 'Personal' : 'Project'}</option>{/each}</select></label>
           <label>Currency<select name="currency"><option value="USD">USD</option><option value="ZIG">ZiG</option></select></label>
           <label>Goal<select name="goal_kind" bind:value={goalKind}><option value="spending_cap">Spending cap</option><option value="income_target">Income target</option><option value="savings_target">Savings allocation</option></select></label>
@@ -40,7 +42,7 @@
       </section>
       <section class="section-block"><div class="section-heading"><div><p class="eyebrow">Active periods</p><h2>Your targets</h2></div><span class="section-caption">Spending includes transfer fees · savings tracks net allocations</span></div>
         {#if data.targets.length}
-          <div class="target-grid">{#each data.targets as target}<article class="target-card"><div class="target-top"><span class="target-icon"><Target size={18}/></span><span class="target-type">{target.goal_kind === 'spending_cap' ? 'Spending cap' : target.goal_kind === 'income_target' ? 'Income target' : 'Savings allocation'} · {target.period_type}</span><form method="POST" action="?/remove"><input type="hidden" name="id" value={target.id}/><button class="icon-button" aria-label="Remove target" title="Remove target"><Trash2 size={16}/></button></form></div><h3>{label(target)}</h3><div class="target-values"><strong>{moneyLabel(target.actual, target.currency as Currency)}</strong><span>of {moneyLabel(String(target.amount), target.currency as Currency)}</span></div><div class="progress-track"><span class:over-limit={target.goal_kind === 'spending_cap' && Number(target.actual) > Number(target.amount)} style={`width:${progressWidth(target)}%`}></span></div><p class="target-foot">{percentUsed(target)}% {target.goal_kind === 'spending_cap' ? 'of cap used' : target.goal_kind === 'savings_target' ? 'of savings allocated' : 'of income target reached'} · {periodName(target.period_type)}</p></article>{/each}</div>
+          <div class="target-grid">{#each data.targets as target}<article class="target-card"><div class="target-top"><span class="target-icon"><Target size={18}/></span><span class="target-type">{target.goal_kind === 'spending_cap' ? 'Spending cap' : target.goal_kind === 'income_target' ? 'Income target' : 'Savings allocation'} · {target.period_type}</span><form method="POST" action="?/remove" use:enhance={handleInvestmentSubmit}><input type="hidden" name="id" value={target.id}/><button class="icon-button" aria-label="Remove target" title="Remove target"><Trash2 size={16}/></button></form></div><h3>{label(target)}</h3><div class="target-values"><strong>{moneyLabel(target.actual, target.currency as Currency)}</strong><span>of {moneyLabel(String(target.amount), target.currency as Currency)}</span></div><div class="progress-track"><span class:over-limit={target.goal_kind === 'spending_cap' && Number(target.actual) > Number(target.amount)} style={`width:${progressWidth(target)}%`}></span></div><p class="target-foot">{percentUsed(target)}% {target.goal_kind === 'spending_cap' ? 'of cap used' : target.goal_kind === 'savings_target' ? 'of savings allocated' : 'of income target reached'} · {periodName(target.period_type)}</p></article>{/each}</div>
         {:else}<div class="empty-card"><div class="empty-icon"><Target size={23}/></div><h3>No active targets in this period</h3><p>Create a weekly, monthly, quarterly, or yearly spending, income, or savings target.</p></div>{/if}
       </section>
     </div>

@@ -13,6 +13,10 @@ The initial migration creates Personal with USD and ZiG EcoCash, Bank, and Cash 
 
 Apply `migrations/0002_investments.sql` after the three setup scripts in the root README. Investment accounts keep their own currency and cash movements. Deposits and withdrawals are excluded from household income and spending; the account balance RPC includes them as wallet transfers. VFEX buys are retained as individual lots, sells allocate lots FIFO, and buy/sell charges affect cost basis and net proceeds. Counter closing prices and forex closing equity are manual daily entries; no broker integration or market-price feed is included.
 
-Then apply `migrations/0003_investment_opening_balances.sql`. This adds an opening-capital baseline for already-active accounts and lets the user import a current stock position with its original buy price and current price. Opening records do not subtract from a personal wallet. New deposits and withdrawals remain linked wallet transfers.
+Then apply `migrations/0003_investment_opening_balances.sql`. This adds an opening-capital baseline for already-active accounts and lets the user import holdings without subtracting from a personal wallet. New deposits and withdrawals remain linked wallet transfers.
+
+Finally apply `migrations/0004_stock_purchase_workflows.sql`. Existing stock positions can be imported without a wallet debit. New purchases atomically record the shares and transfer share value plus charges from a same-currency personal wallet; this transfer is excluded from income and spending.
+
+Apply `migrations/0005_stock_brokerage_purchases.sql` to also record new purchases against cash already deposited in a stocks brokerage account. The purchase form lets the user choose brokerage cash or a direct personal-wallet debit.
 
 Balances are derived from the ledger: opening balance + income + incoming transfer amounts − expenses − outgoing transfer principal − transfer fees. USD and ZiG totals stay separate; the app will not add unlike currencies into a misleading combined balance.
