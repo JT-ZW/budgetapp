@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { loadCreditCommitments } from '$lib/server/credit';
 function minor(value: string): bigint { const normalized = String(value).trim(); const negative = normalized.startsWith('-'); const [whole, fraction = ''] = normalized.replace(/^-/, '').split('.'); const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); return negative ? -amount : amount; }
 function decimal(value: bigint): string { const sign = value < 0n ? '-' : ''; const amount = value < 0n ? -value : value; return `${sign}${amount / 100n}.${String(amount % 100n).padStart(2, '0')}`; }
 function periodRange(type: string, date: Date) {
@@ -94,6 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
   const databaseReady = !groupsResult.error && !balancesResult.error && !monthResult.error && !recentResult.error && !budgetsResult.error && !budgetTransactionsResult.error && !categoriesResult.error;
   return {
+    creditCommitments: await loadCreditCommitments(locals.supabase),
     email: auth.user.email ?? '', groups: databaseReady ? groups : [],
     balances: Object.fromEntries(balanceRows), summary: Object.fromEntries(Object.entries(summary).map(([currency, values]) => [currency, { balance: decimal(values.balance), income: decimal(values.income), spending: decimal(values.spending), net: decimal(values.income - values.spending) }])),
     budgetHighlights: databaseReady ? budgetHighlights : [], recentActivity: databaseReady ? recentActivity : [], databaseReady,

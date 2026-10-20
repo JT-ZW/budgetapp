@@ -56,6 +56,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const investmentMovementsResult = movementWalletIds.length
     ? await supabase.from('budget_app_investment_cash_movements').select('id,kind,amount,description,occurred_at,wallet_account_id,investment_account:budget_app_investment_accounts(name)').in('wallet_account_id', movementWalletIds).order('occurred_at', { ascending: false }).limit(25)
     : { data: [], error: null };
+  const creditMovementsResult = movementWalletIds.length
+    ? await supabase.from('budget_app_credit_movements').select('id,credit_id,kind,account_id,destination_account_id,principal,charges,occurred_on').or(`account_id.in.(${movementWalletIds.join(',')}),destination_account_id.in.(${movementWalletIds.join(',')})`).order('occurred_on', { ascending: false }).limit(25)
+    : { data: [], error: null };
   return {
     accounts: allActiveWalletAccounts,
     groups: activeGroups,
@@ -66,6 +69,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     totalTransactions,
     totalPages,
     investmentMovements: investmentMovementsResult.data ?? [],
+    creditMovements: creditMovementsResult.data ?? [],
+    creditError: creditMovementsResult.error?.message ?? null,
     walletFilter: selectedWallet?.id ?? '',
     walletFilterName: selectedWallet?.name ?? '',
     loadError: accountsResult.error?.message ?? groupsResult.error?.message ?? categoriesResult.error?.message ?? transactionsResult.error?.message ?? investmentMovementsResult.error?.message ?? null

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CreditCommitments from '$lib/components/CreditCommitments.svelte';
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Plus, Settings2, WalletCards, Target, Trash2 } from 'lucide-svelte';
   import { decimalToMinorUnits, formatMoney } from '$lib/finance';
   import { enhance } from '$app/forms';
@@ -18,12 +19,13 @@
 
 <svelte:head><title>Budgets & targets — Budget</title></svelte:head>
 <div class="app-frame">
-  <aside class="sidebar"><a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link active" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
+  <aside class="sidebar"><a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link active" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
   <main class="main-area">
     <header class="topbar"><div><p class="date-label">Flexible plan</p><p class="topbar-title">Budgets & targets</p></div></header>
     <div class="content-wrap">
       <section class="welcome-row"><div><p class="eyebrow">A plan that fits</p><h1>Set goals, <span class="accent-period">see progress.</span></h1><p class="welcome-copy">Track spending caps, income goals, and savings allocations over a week, month, quarter, or year.</p></div><div class="currency-note">USD and ZiG tracked separately</div></section>
       {#if data.loadError}<div class="setup-banner"><div><strong>We couldn’t load your targets</strong><p>{data.loadError}. Run the latest Supabase migration, then refresh.</p></div></div>{/if}
+      <CreditCommitments commitments={data.creditCommitments}/>
       {#if form?.message}<p class="form-alert" role="alert">{form.message}</p>{/if}
       <section class="section-block"><div class="section-heading"><div><p class="eyebrow">Create a target</p><h2>What do you want to track?</h2></div></div>
         <form method="POST" action="?/save" class="feature-form" use:enhance={handleInvestmentSubmit}>
@@ -47,5 +49,5 @@
       </section>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a class="mobile-nav-active" href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a class="mobile-nav-active" href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
 </div>

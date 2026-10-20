@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { loadCreditCommitments } from '$lib/server/credit';
 
 type PeriodType = 'week' | 'month' | 'quarter' | 'year';
 const periods: PeriodType[] = ['week', 'month', 'quarter', 'year'];
@@ -66,7 +67,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
     return { ...target, group_name: groupById[target.wallet_group_id]?.name ?? 'Wallet', group_kind: groupById[target.wallet_group_id]?.kind ?? 'project', category_name: categoryById[target.category_id]?.name ?? null, actual: decimal(used), period_end: target.range.end };
   });
-  return { today: now.toISOString().slice(0, 10), groups: groups.data ?? [], accounts: accounts.data ?? [], categories: categories.data ?? [], targets: rows, loadError: groups.error?.message ?? accounts.error?.message ?? categories.error?.message ?? targets.error?.message ?? tx.error?.message ?? null };
+  return { creditCommitments: await loadCreditCommitments(locals.supabase), today: now.toISOString().slice(0, 10), groups: groups.data ?? [], accounts: accounts.data ?? [], categories: categories.data ?? [], targets: rows, loadError: groups.error?.message ?? accounts.error?.message ?? categories.error?.message ?? targets.error?.message ?? tx.error?.message ?? null };
 };
 
 export const actions: Actions = {

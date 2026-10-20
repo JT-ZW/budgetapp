@@ -382,7 +382,7 @@ input:focus { border-color: #769381; box-shadow: 0 0 0 3px rgba(58,111,84,.09); 
  .wallet-page-grid { grid-template-columns:1fr; gap:12px; }
  .wallet-page-card { padding:16px; }
 }
-.mobile-nav { grid-template-columns:repeat(7,minmax(0,1fr))!important; }
+.mobile-nav { grid-auto-flow:column; grid-auto-columns:minmax(44px,1fr); grid-template-columns:none!important; overflow-x:auto; }
 .mobile-nav a { min-width:0; gap:3px!important; font-size:8px!important; }
 .mobile-nav a span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @media (max-width:760px) {

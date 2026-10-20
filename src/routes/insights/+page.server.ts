@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { creditWalletDelta } from '$lib/credit';
 function minor(value: string): bigint { const normalized = String(value).trim(); const negative = normalized.startsWith('-'); const [whole, fraction = ''] = normalized.replace(/^-/, '').split('.'); const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); return negative ? -amount : amount; }
 function decimal(value: bigint): string { const sign = value < 0n ? '-' : ''; const n = value < 0n ? -value : value; return `${sign}${n / 100n}.${String(n % 100n).padStart(2, '0')}`; }
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -184,17 +185,46 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         offset += 1000;
       }
     };
-    const [beforeResult, rangeResult, beforeInvestmentResult, rangeInvestmentResult] = await Promise.all([
+    const loadCreditMovements = async (from?: string, until?: string) => {
+      const rows: any[] = []; let offset = 0;
+      while (true) {
+        let query = locals.supabase!.from('budget_app_credit_movements')
+          .select('id,kind,account_id,destination_account_id,principal,charges,occurred_on')
+          .or(`account_id.in.(${accountIdList}),destination_account_id.in.(${accountIdList})`)
+          .order('occurred_on').order('id');
+        if (from) query = query.gte('occurred_on', from.slice(0, 10));
+        if (until) query = query.lt('occurred_on', until.slice(0, 10));
+        const result = await query.range(offset, offset + 999);
+        if (result.error) return { data: rows, error: result.error };
+        rows.push(...(result.data ?? []).map((row) => ({ ...row, occurred_at: `${row.occurred_on}T12:00:00.000Z`, credit_movement: true })));
+        if ((result.data ?? []).length < 1000) return { data: rows, error: null };
+        offset += 1000;
+      }
+    };
+    const [beforeResult, rangeResult, beforeInvestmentResult, rangeInvestmentResult, beforeCreditResult, rangeCreditResult] = await Promise.all([
       loadRows(undefined, `${statementFrom}T00:00:00.000Z`),
       loadRows(`${statementFrom}T00:00:00.000Z`, `${new Date(Date.parse(`${statementTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`),
       loadInvestmentMovements(undefined, `${statementFrom}T00:00:00.000Z`),
-      loadInvestmentMovements(`${statementFrom}T00:00:00.000Z`, `${new Date(Date.parse(`${statementTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`)
+      loadInvestmentMovements(`${statementFrom}T00:00:00.000Z`, `${new Date(Date.parse(`${statementTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`),
+      loadCreditMovements(undefined, `${statementFrom}T00:00:00.000Z`),
+      loadCreditMovements(`${statementFrom}T00:00:00.000Z`, `${new Date(Date.parse(`${statementTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)}T00:00:00.000Z`)
     ]);
-    if (beforeResult.error || rangeResult.error || beforeInvestmentResult.error || rangeInvestmentResult.error) statement.error = beforeResult.error?.message ?? rangeResult.error?.message ?? beforeInvestmentResult.error?.message ?? rangeInvestmentResult.error?.message ?? 'Could not load this statement.';
+    if (beforeResult.error || rangeResult.error || beforeInvestmentResult.error || rangeInvestmentResult.error || beforeCreditResult.error || rangeCreditResult.error) statement.error = beforeResult.error?.message ?? rangeResult.error?.message ?? beforeInvestmentResult.error?.message ?? rangeInvestmentResult.error?.message ?? beforeCreditResult.error?.message ?? rangeCreditResult.error?.message ?? 'Could not load this statement.';
     else {
-      let running = minor(statementWallet.openingBalance);
+      // The grouped opening balance is already in minor units.
+      let running: bigint = statementWallet.openingBalance;
       const categoryMap = new Map<string, string>((categoriesResult.data ?? []).map((c: any) => [c.id, c.name]));
       const apply = (row: any, collect: boolean) => {
+        if (row.credit_movement) {
+          const delta = creditWalletDelta(row, accountIdSet);
+          running += delta;
+          // Credit principal is cash movement, excluded from income/expense filters.
+          if (!collect || delta === 0n || statementMode !== 'both') return;
+          const type = row.kind === 'borrow' ? 'Credit borrowing' : 'Credit repayment';
+          const amount = delta < 0n ? -delta : delta;
+          statement.rows.push({ date: row.occurred_at, description: type, reference: row.id, type, debit: delta < 0n ? decimal(amount) : '', credit: delta > 0n ? decimal(amount) : '', balance: decimal(running) });
+          return;
+        }
         if (row.investment_movement) {
           const deposit = row.kind === 'deposit';
           const delta = deposit ? -minor(String(row.amount)) : minor(String(row.amount));
@@ -224,8 +254,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         const amount = delta < 0n ? -delta : delta;
         statement.rows.push({ date: String(row.occurred_at), description: description || (row.kind === 'income' ? 'Income' : row.kind === 'expense' ? 'Spending' : type), reference: row.id, type, debit: delta < 0n ? decimal(amount) : '', credit: delta > 0n ? decimal(amount) : '', balance: decimal(running) });
       };
-      const beforeEvents = [...(beforeResult.data ?? []), ...(beforeInvestmentResult.data ?? []).map((row: any) => ({ ...row, investment_movement: true }))].sort((a: any, b: any) => String(a.occurred_at).localeCompare(String(b.occurred_at)));
-      const rangeEvents = [...(rangeResult.data ?? []), ...(rangeInvestmentResult.data ?? []).map((row: any) => ({ ...row, investment_movement: true }))].sort((a: any, b: any) => String(a.occurred_at).localeCompare(String(b.occurred_at)));
+      const beforeEvents = [...(beforeResult.data ?? []), ...(beforeInvestmentResult.data ?? []).map((row: any) => ({ ...row, investment_movement: true })), ...beforeCreditResult.data].sort((a: any, b: any) => String(a.occurred_at).localeCompare(String(b.occurred_at)) || a.id.localeCompare(b.id));
+      const rangeEvents = [...(rangeResult.data ?? []), ...(rangeInvestmentResult.data ?? []).map((row: any) => ({ ...row, investment_movement: true })), ...rangeCreditResult.data].sort((a: any, b: any) => String(a.occurred_at).localeCompare(String(b.occurred_at)) || a.id.localeCompare(b.id));
       for (const row of beforeEvents) apply(row, false);
       statement.opening = decimal(running);
       for (const row of rangeEvents) apply(row, true);
