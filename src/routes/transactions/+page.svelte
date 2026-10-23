@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Plus, Settings2, WalletCards, ArrowDownLeft, ArrowUpRight } from 'lucide-svelte';
   import { page } from '$app/state';
   import { enhance } from '$app/forms';
@@ -25,9 +26,9 @@
   const categoryLabel = (id: string | null) => data.categories.find((row) => row.id === id)?.name ?? 'Uncategorised';
   const historyPageHref = (page: number) => { const params = new URLSearchParams({ page: String(page) }); if (data.walletFilter) params.set('wallet', data.walletFilter); return `?${params.toString()}#transaction-history`; };
 </script>
-<svelte:head><title>Transactions — Budget</title></svelte:head>
+<svelte:head><title>Transactions — Homwe</title></svelte:head>
 <div class="app-frame">
-  <aside class="sidebar"><a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link active" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><WalletCards size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
+  <aside class="sidebar"><Brand /><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link active" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><WalletCards size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
   <main class="main-area"><header class="topbar"><div><p class="date-label">Your money, clearly</p><p class="topbar-title">Transactions</p></div><a class="add-button" href="#new-transaction"><Plus size={18}/> Add transaction</a></header>
     <div class="content-wrap"><section class="welcome-row"><div><p class="eyebrow">Ledger</p><h1>Every move, <span class="accent-period">accounted for.</span></h1><p class="welcome-copy">Record income, spending, and transfers between your wallets.</p></div></section>
       {#if data.loadError}<div class="setup-banner"><div><strong>Database setup needed</strong><p>{data.loadError}. Run the setup SQL in Supabase, then refresh.</p></div></div>{/if}

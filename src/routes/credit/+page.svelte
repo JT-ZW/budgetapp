@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { enhance } from '$app/forms';
   import type { SubmitFunction } from '@sveltejs/kit';
   import { handleInvestmentSubmit } from '$lib/investments/feedback';
@@ -35,10 +36,10 @@
   };
 </script>
 
-<svelte:head><title>Credit — Budget</title></svelte:head>
+<svelte:head><title>Credit — Homwe</title></svelte:head>
 <div class="app-frame">
   <aside class="sidebar">
-    <a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a>
+    <Brand />
     <div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a>
     <div class="sidebar-label side-label-spaced">Your money</div>
     <a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { goto } from '$app/navigation';
   import { ArrowLeftRight, BarChart3, Download, FileText, LayoutDashboard, LogOut, Settings2, WalletCards, TrendingUp, TrendingDown } from 'lucide-svelte';
   import { decimalToMinorUnits, formatMoney } from '$lib/finance';
@@ -76,14 +77,14 @@
     const content: string[] = [];
     for (let page = 0; page < pages.length; page++) {
       const activityLabel = data.statement.activity === 'both' ? 'All activity' : data.statement.activity === 'income' ? 'Income only' : 'Expenses and transfers out';
-      const commands = ['0.12 0.30 0.24 rg', draw('BUDGET - WALLET STATEMENT', 42, 790, 18, 'F2'), '0 0 0 rg', draw(data.statement.accountName, 42, 764, 12, 'F2'), draw(`Period: ${data.statement.from} to ${data.statement.to}`, 42, 746, 9), draw(`Activity: ${activityLabel}`, 42, 731, 9)];
+      const commands = ['0.12 0.30 0.24 rg', draw('HOMWE - WALLET STATEMENT', 42, 790, 18, 'F2'), '0 0 0 rg', draw(data.statement.accountName, 42, 764, 12, 'F2'), draw(`Period: ${data.statement.from} to ${data.statement.to}`, 42, 746, 9), draw(`Activity: ${activityLabel}`, 42, 731, 9)];
       commands.push('0.94 0.96 0.93 rg 36 700 523 30 re f', '0 0 0 rg', draw(`Opening: ${data.statement.opening} ${currencyLabel(data.statement.currency)}`, 48, 711, 9, 'F2'), right(`Closing: ${data.statement.closing} ${currencyLabel(data.statement.currency)}`, 545, 711, 9));
       commands.push('0.12 0.30 0.24 rg', draw('DATE', 42, 676, 7, 'F2'), draw('DESCRIPTION', 105, 676, 7, 'F2'), draw('REFERENCE', 259, 676, 7, 'F2'), draw('TYPE', 323, 676, 7, 'F2'), right('DEBIT', 410, 676, 7), right('CREDIT', 472, 676, 7), right('BALANCE', 552, 676, 7), '0.78 0.82 0.78 RG 36 668 m 559 668 l S', '0 0 0 rg');
       pages[page].forEach((row, index) => {
         const y = 650 - index * 17;
         commands.push(draw(row.date.slice(0, 10), 42, y, 7), draw(safe(row.description).slice(0, 26), 105, y, 7), draw(row.reference.slice(0, 8).toUpperCase(), 259, y, 7), draw(row.type, 323, y, 7), right(row.debit || '-', 410, y, 7), right(row.credit || '-', 472, y, 7), right(`${row.balance} ${currencyLabel(data.statement.currency)}`, 552, y, 7));
       });
-      commands.push('0.78 0.82 0.78 RG 36 42 m 559 42 l S', draw(`Budget ledger - Page ${page + 1} of ${pages.length}`, 42, 27, 7));
+      commands.push('0.78 0.82 0.78 RG 36 42 m 559 42 l S', draw(`Homwe ledger - Page ${page + 1} of ${pages.length}`, 42, 27, 7));
       content.push(commands.join('\n'));
     }
     const objects: string[] = [];
@@ -104,8 +105,8 @@
     saveFile(blob, `statement-${data.statement.from}-${data.statement.to}.pdf`);
   }
 </script>
-<svelte:head><title>Insights — Budget</title></svelte:head>
-<div class="app-frame"><aside class="sidebar"><a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><WalletCards size={18}/> Budgets</a><a class="side-link active" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
+<svelte:head><title>Insights — Homwe</title></svelte:head>
+<div class="app-frame"><aside class="sidebar"><Brand /><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><WalletCards size={18}/> Budgets</a><a class="side-link active" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
 <main class="main-area"><header class="topbar"><div><p class="date-label">Patterns at a glance</p><p class="topbar-title">Insights</p></div></header><div class="content-wrap insights-content"><section class="welcome-row"><div><p class="eyebrow">Your trends</p><h1>Understand where it <span class="accent-period">goes.</span></h1><p class="welcome-copy">Compare monthly income and spending while keeping USD and ZiG separate.</p></div><div class="currency-note">Last 6 months</div></section>
 {#if data.loadError}<div class="setup-banner"><div><strong>Database setup needed</strong><p>{data.loadError}. Run the setup SQL in Supabase, then refresh.</p></div></div>{/if}
 <section class="overview-metrics insight-balance-metrics" aria-label="Current wallet balances"><article class="overview-metric balance-metric"><div class="metric-heading"><span class="metric-icon"><WalletCards size={17}/></span><span>Current USD balance</span></div><p class="metric-caption">Across active wallets, including opening balances</p><strong class="insight-balance-value">{money(data.balances.USD, 'USD')}</strong></article><article class="overview-metric balance-metric"><div class="metric-heading"><span class="metric-icon"><WalletCards size={17}/></span><span>Current ZiG balance</span></div><p class="metric-caption">Across active wallets, including opening balances</p><strong class="insight-balance-value">{money(data.balances.ZIG, 'ZIG')}</strong></article></section>

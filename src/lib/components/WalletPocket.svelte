@@ -42,7 +42,7 @@
         </div>
         <div class="pocket-front">
           <div class="pocket-stitch"></div>
-          <div class="pocket-front-top"><span class="pocket-wordmark">Budget<span>.</span></span><WalletCards size={23} strokeWidth={1.2}/></div>
+          <div class="pocket-front-top"><span class="pocket-wordmark">Homwe<span>.</span></span><img src="/favicon.png" alt="" width="28" height="28" class="pocket-homwe-mark"/></div>
           <div class="pocket-balance"><span>Available balance · {currency === 'ZIG' ? 'ZiG' : currency}</span><strong>{visible ? formatMoney(total, currency) : '••••••'}</strong></div>
           <div class="pocket-open-hint"><span>View {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}</span><ChevronDown size={15}/></div>
         </div>
@@ -56,6 +56,7 @@
 </article>
 
 <style>
+  .pocket-homwe-mark { border-radius: 7px; object-fit: contain; }
   .wallet-pocket { --pocket-dark: #14202d; --pocket-light: #293c4e; --pocket-accent: #a4c6e6; min-width: 0; padding: 23px 25px 26px; border: 1px solid var(--line); border-radius: 26px; background: var(--surface); box-shadow: 0 8px 30px #37254404; font-family: var(--font-sans); }
   .wallet-pocket[data-tone='1'] { --pocket-dark: #17302b; --pocket-light: #2b4c40; --pocket-accent: #a4d8bd; background: var(--surface); border-color: var(--line); }
   .wallet-pocket[data-tone='2'] { --pocket-dark: #30271f; --pocket-light: #554535; --pocket-accent: #e0c39c; background: var(--surface); border-color: var(--line); }

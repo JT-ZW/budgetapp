@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import CashFlowSummary from '$lib/components/CashFlowSummary.svelte';
   import WalletPocket from '$lib/components/WalletPocket.svelte';
   import SpendingRing from '$lib/components/SpendingRing.svelte';
@@ -22,10 +23,10 @@
   }
 </script>
 
-<svelte:head><title>Overview — Budget</title></svelte:head>
+<svelte:head><title>Overview — Homwe</title></svelte:head>
 <div class="app-frame">
   <aside class="sidebar">
-    <a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a>
+    <Brand />
     <div class="sidebar-label">Workspace</div><a class="side-link active" href="/dashboard"><LayoutDashboard size={18}/> Overview</a>
     <div class="sidebar-label side-label-spaced">Your money</div>
     <a class="side-link" href="/wallets"><CreditCard size={18}/> Wallets <span class="nav-count">{data.groups.length}</span></a>
@@ -46,7 +47,7 @@
             <article class="balance-card" class:balance-card-zig={currency === 'ZIG'}>
               <div class="balance-card-top"><span class="balance-card-label"><WalletCards size={19}/>All wallets</span><span class="balance-card-currency">{currency === 'USD' ? 'USD' : 'ZiG'}</span></div>
               <div class="balance-card-value"><span>Available balance</span><strong>{balancesVisible ? money(data.summary[currency].balance, currency) : '••••••'}</strong><small>{currency === 'USD' ? 'US dollar' : 'Zimbabwe Gold'} · Active wallets</small></div>
-              <div class="balance-card-bottom"><span>Budget<span class="card-brand-dot">.</span></span><span>YOUR EVERYDAY, IN VIEW <Sparkles size={16}/></span></div>
+              <div class="balance-card-bottom"><Brand /><span>YOUR EVERYDAY, IN VIEW <Sparkles size={16}/></span></div>
             </article>
           {/each}
           <div class="dashboard-quick-actions" aria-label="Quick actions">

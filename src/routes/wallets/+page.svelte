@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { ArrowLeftRight, BarChart3, CreditCard, LayoutDashboard, LogOut, Plus, Settings2, Target, WalletCards } from 'lucide-svelte';
   import WalletPocket from '$lib/components/WalletPocket.svelte';
   import { Eye, EyeOff } from 'lucide-svelte';
@@ -8,10 +9,10 @@
   let balancesVisible = $state(false);
 </script>
 
-<svelte:head><title>Wallets — Budget</title></svelte:head>
+<svelte:head><title>Wallets — Homwe</title></svelte:head>
 <div class="app-frame">
   <aside class="sidebar">
-    <a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a>
+    <Brand />
     <div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a>
     <div class="sidebar-label side-label-spaced">Your money</div>
     <a class="side-link active" href="/wallets"><CreditCard size={18}/> Wallets <span class="nav-count">{data.groups.length}</span></a>

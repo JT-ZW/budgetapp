@@ -1,12 +1,14 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
 	import { KeyRound } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
-<svelte:head><title>Choose a new password — Budget</title></svelte:head>
+<svelte:head><title>Choose a new password — Homwe</title></svelte:head>
 <main class="simple-auth-page">
 	<section class="simple-card">
+		<div class="recovery-brand"><Brand href="/" full /></div>
 		<div class="simple-icon"><KeyRound size={22} /></div>
 		<p class="eyebrow">Account recovery</p>
 		<h1>Choose a new password</h1>

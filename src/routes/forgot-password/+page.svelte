@@ -1,13 +1,15 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
 	import { ArrowLeft, Mail } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
-<svelte:head><title>Reset password — Budget</title></svelte:head>
+<svelte:head><title>Reset password — Homwe</title></svelte:head>
 <main class="simple-auth-page">
 	<a class="back-link" href="/"><ArrowLeft size={17} /> Back to sign in</a>
 	<section class="simple-card">
+		<div class="recovery-brand"><Brand href="/" full /></div>
 		<div class="simple-icon"><Mail size={22} /></div>
 		<p class="eyebrow">Account recovery</p>
 		<h1>Reset your password</h1>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { page } from '$app/state';
   import { Home, WalletCards, ArrowLeftRight, Grid2X2, ChartPie, TrendingUp, Target, CreditCard, Settings2, LogOut, X, ChevronRight } from 'lucide-svelte';
   let menu: HTMLDialogElement;
@@ -34,7 +35,7 @@
 
 <dialog bind:this={menu} class="navigation-sheet" aria-labelledby="navigation-title">
   <div class="sheet-handle"></div>
-  <header><div><p class="eyebrow">Your money space</p><h2 id="navigation-title">Explore Budget</h2></div><button class="icon-button" type="button" onclick={() => menu.close()} aria-label="Close menu"><X size={20}/></button></header>
+  <header><div><Brand /><h2 id="navigation-title">Explore Homwe</h2></div><button class="icon-button" type="button" onclick={() => menu.close()} aria-label="Close menu"><X size={20}/></button></header>
   <nav aria-label="More sections">
     {#each more as item}
       <a href={item.href} onclick={() => menu.close()} aria-current={active(item.href) ? 'page' : undefined}>

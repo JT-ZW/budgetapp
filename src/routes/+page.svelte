@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { WalletCards, ArrowRight, ShieldCheck } from 'lucide-svelte';
+  import Brand from '$lib/components/Brand.svelte';
+	import { ArrowRight, ShieldCheck } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
 	import { page } from '$app/state';
 
@@ -8,15 +9,12 @@
 </script>
 
 <svelte:head>
-	<title>Budget — your money, in view</title>
+	<title>Homwe — your money, in view</title>
 </svelte:head>
 
 <main class="auth-page">
-	<section class="intro-panel" aria-label="About Budget">
-		<a class="brand" href="/" aria-label="Budget home">
-			<span class="brand-mark"><WalletCards size={22} strokeWidth={2.2} /></span>
-			<span>Budget</span>
-		</a>
+	<section class="intro-panel" aria-label="About Homwe">
+		<Brand href="/" full />
 		<div class="intro-copy">
 			<p class="eyebrow">A clearer view of your money</p>
 			<h1>Every wallet.<br /><em>One calm view.</em></h1>
@@ -28,7 +26,7 @@
 
 	<section class="form-panel" aria-labelledby="auth-title">
 		<div class="form-wrap">
-			<div class="mobile-brand brand"><span class="brand-mark"><WalletCards size={21} /></span><span>Budget</span></div>
+			<div class="mobile-brand"><Brand href="/" full /></div>
 			<p class="eyebrow">Welcome to your money space</p>
 			<h2 id="auth-title">{mode === 'login' ? 'Sign in' : 'Create your account'}</h2>
 			<p class="form-subtitle">{mode === 'login' ? 'Pick up where you left off.' : 'Set up your private budgeting space.'}</p>

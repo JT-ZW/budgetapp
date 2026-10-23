@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Brand from '$lib/components/Brand.svelte';
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Settings2, Target, TrendingUp, WalletCards } from 'lucide-svelte';
   import InvestmentNav from '$lib/components/InvestmentNav.svelte';
   import { enhance } from '$app/forms';
@@ -16,8 +17,8 @@
   const purchaseWallets = $derived(data.wallets.filter((wallet: any) => wallet.currency === purchaseAccount?.currency));
   $effect(() => { if (!purchaseAccountId && stocksAccounts.length) purchaseAccountId = stocksAccounts[0].id; });
 </script>
-<svelte:head><title>Stocks — Budget</title></svelte:head>
-<div class="app-frame"><aside class="sidebar"><a class="brand" href="/dashboard"><span class="brand-mark"><WalletCards size={21}/></span><span>Budget</span></a><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link active" href="/investments"><TrendingUp size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
+<svelte:head><title>Stocks — Homwe</title></svelte:head>
+<div class="app-frame"><aside class="sidebar"><Brand /><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link active" href="/investments"><TrendingUp size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
 <main class="main-area"><header class="topbar"><div><p class="date-label">VFEX counters and holdings</p><p class="topbar-title">Stocks</p></div></header><InvestmentNav active="stocks"/><div class="content-wrap investment-content">
   <section class="welcome-row"><div><p class="eyebrow">Long-term holdings</p><h1>Stocks<span class="accent-period">.</span></h1><p class="welcome-copy">Import shares you already own or record a new purchase from a personal wallet.</p></div></section>
   {#if data.loadError}<div class="setup-banner"><div><strong>Investment data is not ready</strong><p>{data.loadError}. Apply migrations through 0004 in Supabase, then refresh.</p></div></div>{/if}
