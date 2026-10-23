@@ -41,5 +41,5 @@
       <footer class="dashboard-footer"><span>Values are entered manually and shown by account currency.</span><span>Stock prices and forex equity stay separate from household income and spending.</span></footer>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a class="mobile-nav-active" href="/investments"><TrendingUp size={18}/><span>Investments</span></a><a href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  
 </div>

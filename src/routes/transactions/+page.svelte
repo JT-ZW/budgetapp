@@ -1,10 +1,15 @@
 <script lang="ts">
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Plus, Settings2, WalletCards, ArrowDownLeft, ArrowUpRight } from 'lucide-svelte';
+  import { page } from '$app/state';
   import { enhance } from '$app/forms';
   import { handleInvestmentSubmit } from '$lib/investments/feedback';
   import type { PageData, ActionData } from './$types';
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let kind = $state('expense');
+  $effect(() => {
+    const requestedKind = page.url.searchParams.get('kind');
+    if (requestedKind && ['income', 'expense', 'transfer'].includes(requestedKind)) kind = requestedKind;
+  });
   let walletGroupId = $state('');
   let accountId = $state('');
   let destinationGroupId = $state('');
@@ -52,5 +57,5 @@
       </section>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a class="mobile-nav-active" href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a href="/investments"><WalletCards size={18}/><span>Investments</span></a><a href="/budgets"><WalletCards size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  
 </div>

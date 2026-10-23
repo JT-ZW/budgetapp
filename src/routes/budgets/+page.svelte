@@ -49,5 +49,5 @@
       </section>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a class="mobile-nav-active" href="/budgets"><Target size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  
 </div>

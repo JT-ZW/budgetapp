@@ -4,6 +4,7 @@ declare global {
 	namespace App {
 		interface Locals {
 			supabase: SupabaseClient | null;
+			sessionExpiresAt: string | null;
 		}
 	}
 }

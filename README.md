@@ -16,6 +16,8 @@ Run these files, in this order, in Supabase Dashboard > SQL Editor:
 6. `supabase/migrations/0004_stock_purchase_workflows.sql`
 7. `supabase/migrations/0005_stock_brokerage_purchases.sql`
 8. `supabase/migrations/0006_credit.sql`
+9. `supabase/migrations/0007_app_sessions.sql`
+10. `supabase/migrations/0008_restrict_anonymous_access.sql`
 
 Credit tracks external loans and same-currency borrowing between your wallets. Recording borrowing moves cash immediately without counting principal as income. Add custom instalment amounts and dates, change the final repayment date, and record partial or early payments. Payments cover scheduled instalments in due-date order; any unscheduled balance is due on the final repayment date. Removing an instalment changes the plan only and preserves payment history. External loans support a manually entered fixed total for interest and fees; only paid charges count as expenses. Credit reminders appear on Overview and Budgets, and credit movements appear in Transactions. USD and ZiG remain separate. Apply migration 0006 once before using Credit; it builds on the existing wallet and investment migrations.
 
@@ -33,8 +35,8 @@ npm install
 npm run dev
 ```
 
-Before a production release, run `npm run check` and `npm run build`. Configure the two Supabase public environment variables in Vercel for every environment you deploy.
+Use Node.js 24. Before a production release, run `npm run verify` (type checks, all isolated tests, then production packaging). Configure the two Supabase public environment variables in Vercel for every environment you deploy. See [DEPLOYMENT.md](DEPLOYMENT.md) for the release steps and verification limits.
 
-Run `npm run test:credit` for repayment calculation tests. For isolated PostgreSQL integration tests, temporarily install `@electric-sql/pglite` with `npm install --no-save --package-lock=false --ignore-scripts @electric-sql/pglite`, then run `node scripts/test-credit.mjs`. These tests apply all migrations to an in-memory database and never connect to live Supabase data.
+Run `npm test` for the full suite, including isolated PostgreSQL tests. PGlite is included as a development dependency; `npm ci` installs it. The tests never connect to live Supabase data.
 
-Run `node scripts/test-credit-integration.mjs` with the same temporary dependency to check the actual Credit, Wallets, Overview, Budgets, Transactions, and Insights loaders against one isolated database. This also verifies statement reconciliation, project reimbursements, long repayment histories, and modal success/error handling.
+Run `node scripts/test-credit-integration.mjs` to check the actual Credit, Wallets, Overview, Budgets, Transactions, and Insights loaders against one isolated database. This also verifies statement reconciliation, project reimbursements, long repayment histories, and modal success/error handling.

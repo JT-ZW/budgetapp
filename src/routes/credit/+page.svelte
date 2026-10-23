@@ -102,7 +102,7 @@
       {:else}<section class="credit-empty"><span class="credit-empty-icon"><CreditCard size={29}/></span><p class="eyebrow">A fresh start</p><h2>No borrowing recorded</h2><p>Keep your loans and wallet borrowing in one place.<br/>Add your first record, then plan repayments at your own pace.</p><button class="primary-button credit-new-button" onclick={openBorrowing}><Plus size={16}/> Add your first borrowing <ArrowUpRight size={15}/></button><span class="credit-empty-footnote"><CalendarDays size={14}/> Flexible instalments. Clear due dates.</span></section>{/each}
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a class="mobile-nav-active" href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/budgets"><WalletCards size={18}/><span>Budgets</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  
 </div>
 
 <style>
@@ -111,17 +111,17 @@
   .credit-intro .welcome-copy { max-width: 580px; line-height: 1.7; }
   .credit-new-button { flex-shrink: 0; padding: 0 20px; box-shadow: 0 4px 10px #17493b12; }
   .credit-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 28px; }
-  .credit-summary-card { position: relative; padding: 24px 26px 8px; overflow: hidden; border: 1px solid #dfe8df; border-radius: 18px; background: linear-gradient(125deg, #fff 45%, #f0f6ed); box-shadow: 0 3px 12px #20342d04; }
+  .credit-summary-card { position: relative; padding: 24px 26px 8px; overflow: hidden; border: 1px solid #ece3f6; border-radius: 24px; background: linear-gradient(125deg, #fff 45%, #f4edfc); box-shadow: 0 3px 12px #37204d04; }
   .credit-zig { border-color: #e3e4ed; background: linear-gradient(125deg, #fff 45%, #f2f3f9); }
   .credit-summary-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  .credit-currency { display: inline-flex; align-items: center; gap: 8px; color: #53685a; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
-  .credit-currency-dot { width: 7px; height: 7px; border-radius: 50%; background: #80a862; }
+  .credit-currency { display: inline-flex; align-items: center; gap: 8px; color: #80708f; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+  .credit-currency-dot { width: 7px; height: 7px; border-radius: 50%; background: #ab7edc; }
   .credit-zig .credit-currency-dot { background: #8588b3; }
-  .credit-summary-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #e1eadb; border-radius: 12px; background: #eaf2e6; color: #527846; }
+  .credit-summary-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #e9ddf5; border-radius: 12px; background: #f0e7fa; color: #9568c7; }
   .credit-zig .credit-summary-icon { border-color: #e2e4ef; background: #eceef6; color: #737aa0; }
   .credit-total { margin: 18px 0 5px; color: var(--ink); font-size: clamp(28px, 2.6vw, 38px); font-weight: 750; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .credit-total-label { margin: 0 0 24px; color: var(--muted); font-size: 12px; }
-  .credit-summary dl { display: grid; gap: 0; margin: 0; border-top: 1px solid #e4eade; }
+  .credit-summary dl { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--line); }
   .credit-zig dl { border-color: #e4e5ee; }
   .credit-summary dl div { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; font-size: 11px; }
   .credit-summary dl div + div { border-top: 1px solid #e5e9e480; }
@@ -131,7 +131,7 @@
   .credit-note { display: flex; align-items: flex-start; gap: 9px; margin: 17px 2px 28px; color: #7c8a7f; }
   .credit-note :global(svg) { flex-shrink: 0; margin-top: 1px; }
   .credit-note p { margin: 0; font-size: 11px; line-height: 1.7; }
-  .credit-create { margin-top: 0; margin-bottom: 34px; border: 1px solid var(--line); border-radius: 15px; background: #fff; scroll-margin-top: 24px; }
+  .credit-create { margin-top: 0; margin-bottom: 34px; border: 1px solid var(--line); border-radius: 22px; background: #fff; scroll-margin-top: 24px; }
   summary { cursor: pointer; list-style: none; font-size: 12px; font-weight: 650; }
   summary::-webkit-details-marker { display: none; }
   summary:focus-visible { outline: 3px solid #8da96f; outline-offset: 4px; border-radius: 8px; }
@@ -139,7 +139,7 @@
   .credit-create summary:hover { background: #f9fbf7; border-radius: 15px; }
   .credit-create summary strong { display: block; color: var(--ink); font-size: 13px; }
   .credit-create summary small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
-  .credit-create-icon { display: grid; flex-shrink: 0; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #edf3e9; color: #54724c; }
+  .credit-create-icon { display: grid; flex-shrink: 0; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--mint); color: var(--green); }
   .credit-create :global(.credit-chevron) { margin-left: auto; flex-shrink: 0; color: #8d9a90; transition: transform .18s; }
   .credit-create details[open] :global(.credit-chevron) { transform: rotate(180deg); }
   .credit-create details > .section-caption { margin: 0 22px; padding-top: 17px; border-top: 1px solid var(--line); line-height: 1.7; }

@@ -58,6 +58,20 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (row.kind === 'transfer') item.spending += minor(String(row.fee_amount ?? '0'));
   }
   const categoryNames = new Map<string, string>((categoriesResult.data ?? []).map((row: { id: string; name: string }) => [row.id, row.name]));
+  const spendingCategories = Object.fromEntries((['USD', 'ZIG'] as const).map((currency) => {
+    const totals = new Map<string, bigint>();
+    for (const row of monthTransactions as any[]) {
+      if (accounts.get(row.account_id)?.currency !== currency) continue;
+      const amount = row.kind === 'expense' ? minor(String(row.amount)) : row.kind === 'transfer' ? minor(String(row.fee_amount ?? '0')) : 0n;
+      if (amount <= 0n) continue;
+      const name = categoryNames.get(row.category_id) ?? (row.kind === 'transfer' ? 'Transfer fees' : 'Uncategorised');
+      totals.set(name, (totals.get(name) ?? 0n) + amount);
+    }
+    const sorted = [...totals].sort((a, b) => a[1] === b[1] ? 0 : a[1] > b[1] ? -1 : 1);
+    const categories = sorted.slice(0, 4);
+    if (sorted.length > 4) categories.push(['Other', sorted.slice(4).reduce((sum, [, amount]) => sum + amount, 0n)]);
+    return [currency, categories.map(([name, amount]) => ({ name, amount: decimal(amount) }))];
+  }));
   const budgetHighlights = (budgetsResult.data ?? []).flatMap((target: any) => {
     const periodType = target.period_type ?? 'month';
     const range = periodRange(periodType, now);
@@ -95,6 +109,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
   const databaseReady = !groupsResult.error && !balancesResult.error && !monthResult.error && !recentResult.error && !budgetsResult.error && !budgetTransactionsResult.error && !categoriesResult.error;
   return {
+    spendingCategories: databaseReady ? spendingCategories : { USD: [], ZIG: [] },
     creditCommitments: await loadCreditCommitments(locals.supabase),
     email: auth.user.email ?? '', groups: databaseReady ? groups : [],
     balances: Object.fromEntries(balanceRows), summary: Object.fromEntries(Object.entries(summary).map(([currency, values]) => [currency, { balance: decimal(values.balance), income: decimal(values.income), spending: decimal(values.spending), net: decimal(values.income - values.spending) }])),

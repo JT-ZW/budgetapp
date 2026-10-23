@@ -26,5 +26,5 @@
       <section class="personal-note"><span class="wallet-icon"><WalletCards size={18}/></span><div><strong>Personal wallet</strong><p>Personal is created automatically with EcoCash, Bank, and Cash sub-wallets in USD and ZiG. Those balances roll up to your Personal wallet.</p></div></section>
     </div>
   </main>
-  <nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a href="/investments"><WalletCards size={18}/><span>Investments</span></a><a href="/budgets"><WalletCards size={18}/><span>Budgets</span></a><a href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a class="mobile-nav-active" href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav>
+  
 </div>

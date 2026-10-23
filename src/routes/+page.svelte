@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { WalletCards, ArrowRight, ShieldCheck } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
+	import { page } from '$app/state';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let mode = $state<'login' | 'signup'>('login');
@@ -35,6 +36,12 @@
 			{#if !data.supabaseConfigured}
 				<div class="notice" role="status">Add your Supabase Project URL and Publishable key in <code>.env</code> before signing in.</div>
 			{/if}
+			{#if page.url.searchParams.get('auth') === 'expired'}
+				<div class="notice" role="status">Your session has ended. Sign in again to continue. Sessions expire after 10 minutes without activity.</div>
+			{/if}
+			{#if page.url.searchParams.get('auth') === 'password-changed'}
+				<div class="notice" role="status">Password updated. Sign in with your new password.</div>
+			{/if}
 			{#if form?.message}
 				<div class:notice={form.mode === 'signup' && form.message.startsWith('Check your email')} class="form-message" role="status">{form.message}</div>
 			{/if}
@@ -44,7 +51,7 @@
 				<input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" value={form?.email ?? ''} required />
 
 				<label for="password">Password</label>
-				<input id="password" name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder="At least 8 characters" minlength="8" required />
+				<input id="password" name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'signup' ? 'At least 12 characters' : 'Your password'} minlength={mode === 'signup' ? 12 : 1} required />
 
 				{#if mode === 'login'}
 					<a class="forgot-link" href="/forgot-password">Forgot password?</a>

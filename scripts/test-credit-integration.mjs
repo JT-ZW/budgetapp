@@ -75,7 +75,7 @@ try {
   await db.exec(`create role authenticated; create role anon; create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon;`);
-  for (const name of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql']) await db.exec(readFileSync('supabase/migrations/' + name, 'utf8').replace('create extension if not exists pgcrypto;', ''));
+  for (const name of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql', '0007_app_sessions.sql', '0008_restrict_anonymous_access.sql']) await db.exec(readFileSync('supabase/migrations/' + name, 'utf8').replace('create extension if not exists pgcrypto;', ''));
   await db.query('insert into auth.users values ($1)', [owner]);
   await db.query('update public.budget_app_wallet_accounts set opening_balance=1000 where owner_id=$1', [owner]);
   const accounts = (await db.query('select * from public.budget_app_wallet_accounts where owner_id=$1', [owner])).rows;

@@ -11,7 +11,7 @@
   const max = (currency: Currency) => Math.max(1, ...data.months.flatMap((month) => [movementMode !== 'spending' ? Number(month[currency].income) : 0, movementMode !== 'income' ? Number(month[currency].spending) : 0]));
   const height = (value: string, currency: Currency) => `${Number(value) === 0 ? 0 : Math.max(3, Number(value) / max(currency) * 100)}%`;
   const halfMax = (currency: Currency) => String(Math.round(max(currency) * 50) / 100);
-  const spendColors = ['#205b46', '#b68736', '#547aa5', '#9b648d', '#4c8e91'];
+  const spendColors = ['#6fd3b0', '#e6b56e', '#739fdf', '#a996df', '#e68d97'];
   const categoryWidth = (value: string, series: any) => {
     const high = Math.max(0, ...series.currentTop.flatMap((category: any) => [Number(category.current), Number(category.previous)]));
     return `${high ? Math.min(100, Number(value) / high * 100) : 0}%`;
@@ -127,4 +127,4 @@
 <div class="insight-columns">
 <section class="section-block"><div class="section-heading"><div><p class="eyebrow">By wallet</p><h2>Income and outflow</h2></div></div>{#if data.wallets.length}<div class="settings-list">{#each data.wallets as wallet}<div class="settings-row wallet-insight-row"><div><strong>{wallet.group}</strong><span>{wallet.currency} · In {money(wallet.income, wallet.currency as Currency)}</span></div><span class="wallet-outflow">Out {money(wallet.spending, wallet.currency as Currency)}</span></div>{/each}</div>{:else}<div class="empty-card compact-empty"><h3>No wallet activity yet</h3><p>Wallet summaries appear after transactions are added.</p></div>{/if}</section></div>
 <footer class="dashboard-footer"><span>Currency amounts are never combined.</span><span>Monthly view starts {new Date(`${data.periodStart}T00:00:00`).toLocaleDateString('en', { month: 'long', year: 'numeric' })}.</span></footer></div></main>
-<nav class="mobile-nav" aria-label="Main navigation"><a href="/dashboard"><LayoutDashboard size={18}/><span>Overview</span></a><a href="/wallets"><WalletCards size={18}/><span>Wallets</span></a><a href="/transactions"><ArrowLeftRight size={18}/><span>Activity</span></a><a href="/investments"><WalletCards size={18}/><span>Investments</span></a><a href="/budgets"><WalletCards size={18}/><span>Budgets</span></a><a class="mobile-nav-active" href="/insights"><BarChart3 size={18}/><span>Insights</span></a><a href="/credit"><WalletCards size={18}/><span>Credit</span></a><a href="/settings"><Settings2 size={18}/><span>Settings</span></a></nav></div>
+</div>

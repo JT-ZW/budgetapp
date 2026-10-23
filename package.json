@@ -3,6 +3,9 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"engines": {
+		"node": "24.x"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -10,9 +13,14 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test:credit": "node scripts/test-credit.mjs --math-only",
+		"test:sessions": "node scripts/test-sessions.mjs",
+		"test:dashboard": "node scripts/test-dashboard.mjs",
+		"test": "node scripts/test-credit.mjs && node scripts/test-credit-integration.mjs && node scripts/test-sessions.mjs && node scripts/test-dashboard.mjs && node scripts/test-database-security.mjs",
+		"verify": "npm run check && npm test && npm run build",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"devDependencies": {
+		"@electric-sql/pglite": "0.5.10",
 		"@sveltejs/adapter-vercel": "^6.3.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -23,6 +31,7 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"@fontsource-variable/manrope": "^5.3.0",
 		"@supabase/ssr": "^0.12.7",
 		"@supabase/supabase-js": "^2.117.2",
 		"lucide-svelte": "^1.0.1"

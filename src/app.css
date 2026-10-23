@@ -629,8 +629,8 @@ input:focus { border-color: #769381; box-shadow: 0 0 0 3px rgba(58,111,84,.09); 
 .investment-card-stats span { color:#849088; font-size:9px; }
 .investment-card-stats strong { font-size:12px; }
 .investment-card-stats strong { overflow-wrap:anywhere; }
-.gain { color:#347951!important; }
-.loss { color:#a85843!important; }
+.gain { color:var(--positive, #347951)!important; }
+.loss { color:var(--negative, #a85843)!important; }
 .investment-mini-list { display:grid; gap:9px; margin-top:13px; }
 .investment-mini-list>div { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:10px; }
 .investment-mini-list>div>span { display:grid; gap:3px; color:#6f7d74; }
