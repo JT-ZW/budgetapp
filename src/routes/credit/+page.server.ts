@@ -36,7 +36,7 @@ const operation = (action: string): Actions[string] => async ({ request, locals 
   }
   const { error } = await locals.supabase.rpc('budget_app_manage_credit', { p_action: action, p_data: payload });
   if (error) return fail(400, { message: error.message });
-  return { message: action === 'create' ? 'Borrowing recorded and wallet balances updated.' : action === 'repay' ? 'Repayment recorded and wallet balances updated.' : 'Repayment plan updated.', success: true };
+  return { message: action === 'create' ? (payload.kind === 'lent' ? 'Lending recorded and wallet balance updated.' : 'Borrowing recorded and wallet balances updated.') : action === 'repay' ? 'Repayment recorded and wallet balances updated.' : 'Repayment plan updated.', success: true };
 };
 export const actions: Actions = {
   create: operation('create'), instalment: operation('instalment'), repay: operation('repay'),

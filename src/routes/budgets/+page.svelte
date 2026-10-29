@@ -11,11 +11,13 @@
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let goalKind = $state('spending_cap');
   let periodType = $state('month');
+  let customStart = $state('');
+  let customEnd = $state('');
   const label = (target: PageData['targets'][number]) => `${target.group_name} · ${target.category_name ?? 'Whole wallet'} · ${target.currency}`;
   const moneyLabel = (value: string, currency: Currency) => formatMoney(decimalToMinorUnits(value), currency);
   const percentUsed = (target: PageData['targets'][number]) => Math.round(Number(target.actual) / Number(target.amount) * 100);
   const progressWidth = (target: PageData['targets'][number]) => Math.max(0, Math.min(100, percentUsed(target)));
-  const periodName = (period: string) => ({ week: 'This week', month: 'This month', quarter: 'This quarter', year: 'This year' }[period] ?? 'This period');
+  const periodName = (period: string) => ({ week: 'This week', month: 'This month', quarter: 'This quarter', year: 'This year', custom: 'Custom period' }[period] ?? 'This period');
 </script>
 
 <svelte:head><title>Budgets & targets — Homwe</title></svelte:head>
@@ -24,7 +26,7 @@
   <main class="main-area">
     <header class="topbar"><div><p class="date-label">Flexible plan</p><p class="topbar-title">Budgets & targets</p></div></header>
     <div class="content-wrap">
-      <section class="welcome-row"><div><p class="eyebrow">A plan that fits</p><h1>Set goals, <span class="accent-period">see progress.</span></h1><p class="welcome-copy">Track spending caps, income goals, and savings allocations over a week, month, quarter, or year.</p></div><div class="currency-note">USD and ZiG tracked separately</div></section>
+      <section class="welcome-row"><div><p class="eyebrow">A plan that fits</p><h1>Set goals, <span class="accent-period">see progress.</span></h1><p class="welcome-copy">Track spending caps, income goals, and savings allocations over a week, month, quarter, year, or your own dates.</p></div><div class="currency-note">USD and ZiG tracked separately</div></section>
       {#if data.loadError}<div class="setup-banner"><div><strong>We couldn’t load your targets</strong><p>{data.loadError}. Run the latest Supabase migration, then refresh.</p></div></div>{/if}
       <CreditCommitments commitments={data.creditCommitments}/>
       {#if form?.message}<p class="form-alert" role="alert">{form.message}</p>{/if}
@@ -33,7 +35,8 @@
           <label>Wallet<select name="wallet_group_id" required><option value="" disabled selected>Choose a wallet</option>{#each data.groups as group}<option value={group.id}>{group.name} · {group.kind === 'personal' ? 'Personal' : 'Project'}</option>{/each}</select></label>
           <label>Currency<select name="currency"><option value="USD">USD</option><option value="ZIG">ZiG</option></select></label>
           <label>Goal<select name="goal_kind" bind:value={goalKind}><option value="spending_cap">Spending cap</option><option value="income_target">Income target</option><option value="savings_target">Savings allocation</option></select></label>
-          <label>Timeline<select name="period_type" bind:value={periodType}><option value="week">Weekly</option><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option></select></label>
+          <label>Timeline<select name="period_type" bind:value={periodType}><option value="week">Weekly</option><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option><option value="custom">Custom dates</option></select></label>
+          {#if periodType === 'custom'}<label>Start date<input name="period_start" type="date" bind:value={customStart} max={customEnd || undefined} required/></label><label>End date (inclusive)<input name="period_end" type="date" bind:value={customEnd} min={customStart || undefined} required/></label>{/if}
           {#if goalKind === 'savings_target'}
             <div class="savings-guidance"><strong>Use a dedicated project wallet as your savings pot.</strong><span>Create one in Settings, then transfer money into it. Transfers in count toward this target; transfers out reduce it.</span></div>
           {:else}
@@ -43,10 +46,10 @@
           <div class="form-footer"><p>Each target tracks one wallet, currency, and time period.</p><button class="primary-button" type="submit"><Plus size={17}/> Save target</button></div>
         </form>
       </section>
-      <section class="section-block"><div class="section-heading"><div><p class="eyebrow">Active periods</p><h2>Your targets</h2></div><span class="section-caption">Spending includes transfer fees · savings tracks net allocations</span></div>
+      <section class="section-block"><div class="section-heading"><div><p class="eyebrow">Your periods</p><h2>Your targets</h2></div><span class="section-caption">Spending includes transfer fees · savings tracks net allocations</span></div>
         {#if data.targets.length}
-          <div class="target-grid">{#each data.targets as target}<article class="target-card"><div class="target-top"><span class="target-icon"><Target size={18}/></span><span class="target-type">{target.goal_kind === 'spending_cap' ? 'Spending cap' : target.goal_kind === 'income_target' ? 'Income target' : 'Savings allocation'} · {target.period_type}</span><form method="POST" action="?/remove" use:enhance={handleInvestmentSubmit}><input type="hidden" name="id" value={target.id}/><button class="icon-button" aria-label="Remove target" title="Remove target"><Trash2 size={16}/></button></form></div><h3>{label(target)}</h3><div class="target-values"><strong>{moneyLabel(target.actual, target.currency as Currency)}</strong><span>of {moneyLabel(String(target.amount), target.currency as Currency)}</span></div><div class="progress-track"><span class:over-limit={target.goal_kind === 'spending_cap' && Number(target.actual) > Number(target.amount)} style={`width:${progressWidth(target)}%`}></span></div><p class="target-foot">{percentUsed(target)}% {target.goal_kind === 'spending_cap' ? 'of cap used' : target.goal_kind === 'savings_target' ? 'of savings allocated' : 'of income target reached'} · {periodName(target.period_type)}</p></article>{/each}</div>
-        {:else}<div class="empty-card"><div class="empty-icon"><Target size={23}/></div><h3>No active targets in this period</h3><p>Create a weekly, monthly, quarterly, or yearly spending, income, or savings target.</p></div>{/if}
+          <div class="target-grid">{#each data.targets as target}<article class="target-card"><div class="target-top"><span class="target-icon"><Target size={18}/></span><span class="target-type">{target.goal_kind === 'spending_cap' ? 'Spending cap' : target.goal_kind === 'income_target' ? 'Income target' : 'Savings allocation'} · {target.period_type}</span><form method="POST" action="?/remove" use:enhance={handleInvestmentSubmit}><input type="hidden" name="id" value={target.id}/><button class="icon-button" aria-label="Remove target" title="Remove target"><Trash2 size={16}/></button></form></div><h3>{label(target)}</h3><div class="target-values"><strong>{moneyLabel(target.actual, target.currency as Currency)}</strong><span>of {moneyLabel(String(target.amount), target.currency as Currency)}</span></div><div class="progress-track"><span class:over-limit={target.goal_kind === 'spending_cap' && Number(target.actual) > Number(target.amount)} style={`width:${progressWidth(target)}%`}></span></div><p class="target-foot">{percentUsed(target)}% {target.goal_kind === 'spending_cap' ? 'of cap used' : target.goal_kind === 'savings_target' ? 'of savings allocated' : 'of income target reached'} · {periodName(target.period_type)}</p><p class="target-foot">{target.period_start} to {target.period_end} (inclusive){target.period_start > data.today ? ' · Upcoming' : target.period_end < data.today ? ' · Completed' : ' · Active'}</p></article>{/each}</div>
+        {:else}<div class="empty-card"><div class="empty-icon"><Target size={23}/></div><h3>No active targets in this period</h3><p>Create a weekly, monthly, quarterly, yearly, or custom spending, income, or savings target.</p></div>{/if}
       </section>
     </div>
   </main>

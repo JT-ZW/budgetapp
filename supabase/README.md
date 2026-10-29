@@ -1,5 +1,9 @@
 # Data model notes
 
+Apply `migrations/0009_lending.sql` and `migrations/0010_custom_budget_periods.sql` after the existing migrations. For `kind='lent'`, the Credit record's `lender` field stores the borrower name and `receiving_account_id` stores the original source wallet. `lend` movements debit that wallet; `collect` movements credit the selected repayment wallet. Lending principal is excluded from income/spending. Writes use the existing owner-checked, serialized Credit RPC; direct writes remain prohibited.
+
+Custom budget targets use `period_type='custom'` and an inclusive `period_end >= period_start`. Standard calendar targets keep `period_end` null. Uniqueness includes both custom dates, so targets sharing a start date can have different end dates. Custom targets remain available for historical and upcoming review.
+
 - `wallet_groups` are roll-up parents: one Personal group and any number of project groups.
 - `wallet_accounts` hold a single currency balance. Personal accounts require an EcoCash, Bank, or Cash channel; project accounts use currency only.
 - `transactions` are the ledger. Money is stored as exact decimal values. A transfer is one row with source, destination, received amount, and optional source-currency fee. It is not classified as income or spending; a fee is categorized as an expense.

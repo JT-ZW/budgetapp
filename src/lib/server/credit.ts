@@ -27,7 +27,7 @@ export async function loadCreditCommitments(db: SupabaseClient) {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Harare', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const monthEnd = today.slice(0, 7) + '-31';
   const rows = results[0].data.map((c) => creditProgress(c, results[2].data, results[1].data, today))
-    .filter((c) => creditMinor(c.outstanding) > 0n).map((c) => {
+    .filter((c) => c.kind !== 'lent' && creditMinor(c.outstanding) > 0n).map((c) => {
       let due = c.schedule.filter((i) => i.due_on <= monthEnd).reduce((sum, i) => sum + creditMinor(i.remaining), 0n);
       // Early payments can also cover the unscheduled final balance.
       if (c.due_on <= monthEnd) due += creditMinor(c.unscheduledOutstanding);

@@ -2,8 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { loadCreditCommitments } from '$lib/server/credit';
 
-type PeriodType = 'week' | 'month' | 'quarter' | 'year';
-const periods: PeriodType[] = ['week', 'month', 'quarter', 'year'];
+type PeriodType = 'week' | 'month' | 'quarter' | 'year' | 'custom';
+const periods: PeriodType[] = ['week', 'month', 'quarter', 'year', 'custom'];
 function minor(value: string): bigint { const [whole, fraction = ''] = String(value).split('.'); return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); }
 function decimal(value: bigint): string { const sign = value < 0n ? '-' : ''; const n = value < 0n ? -value : value; return `${sign}${n / 100n}.${String(n % 100n).padStart(2, '0')}`; }
 function money(value: string): string { const s = value.trim(); if (!/^(?:0|[1-9]\d{0,15})(?:\.\d{1,2})?$/.test(s)) throw new Error('Enter a valid positive amount with up to two decimal places.'); const [w, f = ''] = s.split('.'); const n = BigInt(w) * 100n + BigInt(f.padEnd(2, '0')); if (n <= 0n) throw new Error('The target must be greater than zero.'); return `${w}.${f.padEnd(2, '0')}`; }
@@ -30,16 +30,24 @@ export const load: PageServerLoad = async ({ locals }) => {
     locals.supabase.from('budget_app_wallet_groups').select('id,name,kind').is('archived_at', null).order('name'),
     locals.supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency').is('archived_at', null),
     locals.supabase.from('budget_app_categories').select('id,name,kind').order('name'),
-    locals.supabase.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_type').order('created_at')
+    locals.supabase.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_end,period_type').order('created_at')
   ]);
   const activeTargets = (targets.data ?? []).flatMap((target: any) => {
     const type: PeriodType = isPeriod(target.period_type) ? target.period_type : 'month';
-    const range = periodRange(type, now);
-    return target.period_start === range.start ? [{ ...target, period_type: type, range }] : [];
+    const range = type === 'custom' && target.period_end
+      ? { start: target.period_start, end: new Date(Date.parse(target.period_end + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10) }
+      : periodRange(type, now);
+    return type === 'custom' || target.period_start === range.start ? [{ ...target, period_type: type, range }] : [];
   });
   const earliest = activeTargets.map((target: any) => target.range.start).sort()[0] ?? periodRange('month', now).start;
   const latest = activeTargets.map((target: any) => target.range.end).sort().at(-1) ?? periodRange('month', now).end;
-  const tx = await locals.supabase.from('budget_app_transactions').select('kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,occurred_at').gte('occurred_at', `${earliest}T00:00:00Z`).lt('occurred_at', `${latest}T00:00:00Z`);
+  const tx: { data: any[]; error: { message: string } | null } = { data: [], error: null };
+  for (let offset = 0; ; offset += 1000) {
+    const result = await locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,occurred_at').gte('occurred_at', `${earliest}T00:00:00Z`).lt('occurred_at', `${latest}T00:00:00Z`).order('id').range(offset, offset + 999);
+    if (result.error) { tx.error = result.error; break; }
+    tx.data.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1000) break;
+  }
   const groupById = Object.fromEntries((groups.data ?? []).map((g: any) => [g.id, g]));
   const accountById = Object.fromEntries((accounts.data ?? []).map((a: any) => [a.id, a]));
   const categoryById = Object.fromEntries((categories.data ?? []).map((c: any) => [c.id, c]));
@@ -65,7 +73,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       if (target.goal_kind === 'spending_cap' && row.kind === 'expense') used += minor(String(row.amount));
       if (target.goal_kind === 'spending_cap' && row.kind === 'transfer') used += minor(String(row.fee_amount ?? '0'));
     }
-    return { ...target, group_name: groupById[target.wallet_group_id]?.name ?? 'Wallet', group_kind: groupById[target.wallet_group_id]?.kind ?? 'project', category_name: categoryById[target.category_id]?.name ?? null, actual: decimal(used), period_end: target.range.end };
+    return { ...target, group_name: groupById[target.wallet_group_id]?.name ?? 'Wallet', group_kind: groupById[target.wallet_group_id]?.kind ?? 'project', category_name: categoryById[target.category_id]?.name ?? null, actual: decimal(used), period_end: target.period_end ?? new Date(Date.parse(target.range.end + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10) };
   });
   return { creditCommitments: await loadCreditCommitments(locals.supabase), today: now.toISOString().slice(0, 10), groups: groups.data ?? [], accounts: accounts.data ?? [], categories: categories.data ?? [], targets: rows, loadError: groups.error?.message ?? accounts.error?.message ?? categories.error?.message ?? targets.error?.message ?? tx.error?.message ?? null };
 };
@@ -89,11 +97,19 @@ export const actions: Actions = {
         const { data: category } = await locals.supabase.from('budget_app_categories').select('kind').eq('id', categoryId).eq('owner_id', auth.user.id).maybeSingle();
         if (!category || category.kind !== expected) throw new Error('Choose a category matching the goal type.');
       }
-      const periodStart = periodRange(periodTypeValue, new Date()).start;
+      const periodStart = periodTypeValue === 'custom' ? str(form, 'period_start') : periodRange(periodTypeValue, new Date()).start;
+      const periodEnd = periodTypeValue === 'custom' ? str(form, 'period_end') : null;
+      if (periodTypeValue === 'custom') {
+        for (const date of [periodStart, periodEnd!]) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date + 'T00:00:00Z')) || new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) !== date || date < '0001-01-01' || date > '9999-12-30') throw new Error('Enter valid start and end dates.');
+        }
+        if (periodEnd! < periodStart) throw new Error('End date must be on or after the start date.');
+      }
       let existingQuery = locals.supabase.from('budget_app_budget_targets').select('id').eq('owner_id', auth.user.id).eq('wallet_group_id', groupId).eq('currency', currency).eq('goal_kind', goalKind).eq('period_type', periodTypeValue).eq('period_start', periodStart);
+      existingQuery = periodEnd ? existingQuery.eq('period_end', periodEnd) : existingQuery.is('period_end', null);
       existingQuery = categoryId ? existingQuery.eq('category_id', categoryId) : existingQuery.is('category_id', null);
       const { data: existing } = await existingQuery.maybeSingle();
-      const values = { amount, owner_id: auth.user.id, wallet_group_id: groupId, currency, goal_kind: goalKind, category_id: categoryId || null, period_start: periodStart, period_type: periodTypeValue };
+      const values = { amount, owner_id: auth.user.id, wallet_group_id: groupId, currency, goal_kind: goalKind, category_id: categoryId || null, period_start: periodStart, period_end: periodEnd, period_type: periodTypeValue };
       const result = existing ? await locals.supabase.from('budget_app_budget_targets').update(values).eq('id', existing.id) : await locals.supabase.from('budget_app_budget_targets').insert(values);
       if (result.error) throw new Error(result.error.message);
     } catch (error) { return fail(400, { message: error instanceof Error ? error.message : 'Could not save this target.' }); }

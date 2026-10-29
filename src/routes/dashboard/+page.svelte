@@ -16,7 +16,7 @@
   function dateLabel() { return new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()); }
   function budgetPercent(goal: PageData['budgetHighlights'][number]) { return Math.round((Number(goal.actual) / Number(goal.amount)) * 100); }
   function progressWidth(goal: PageData['budgetHighlights'][number]) { return Math.max(0, Math.min(100, budgetPercent(goal))); }
-  function periodName(period: string) { return ({ week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly' } as Record<string, string>)[period] ?? 'Monthly'; }
+  function periodName(period: string) { return ({ week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', custom: 'Custom dates' } as Record<string, string>)[period] ?? 'Monthly'; }
   function recentAmount(item: PageData['recentActivity'][number]) {
     if (item.kind === 'transfer') return `${money(item.amount, item.source_currency as Currency)} → ${money(String(item.destination_amount ?? item.amount), item.destination_currency as Currency)}`;
     return `${item.kind === 'income' ? '+' : '−'}${money(item.amount, item.source_currency as Currency)}`;

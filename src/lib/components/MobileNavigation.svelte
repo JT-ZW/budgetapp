@@ -12,7 +12,7 @@
     { href: '/insights', label: 'Insights', detail: 'Understand your money', icon: ChartPie },
     { href: '/budgets', label: 'Budgets', detail: 'Make room for your goals', icon: Target },
     { href: '/investments', label: 'Investments', detail: 'Keep an eye on growth', icon: TrendingUp },
-    { href: '/credit', label: 'Credit', detail: 'Borrowing and repayments', icon: CreditCard },
+    { href: '/credit', label: 'Credit', detail: 'Borrowing, lending and repayments', icon: CreditCard },
     { href: '/settings', label: 'Settings', detail: 'Your wallets and preferences', icon: Settings2 }
   ];
   const active = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);

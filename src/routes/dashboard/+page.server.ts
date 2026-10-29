@@ -16,18 +16,25 @@ export const load: PageServerLoad = async ({ locals }) => {
   const now = new Date();
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const nextDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const periodStart = startDate.toISOString().slice(0, 10);
-  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString();
-  const nextYearStart = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1)).toISOString();
-  const [groupsResult, balancesResult, monthResult, recentResult, budgetsResult, budgetTransactionsResult, categoriesResult] = await Promise.all([
+  const [groupsResult, balancesResult, monthResult, recentResult, budgetsResult, categoriesResult] = await Promise.all([
     locals.supabase.from('budget_app_wallet_groups').select('id,name,kind,archived_at,created_at,wallet_accounts:budget_app_wallet_accounts(id,currency,channel,opening_balance,archived_at)'),
     locals.supabase.rpc('budget_app_get_account_balances'),
     locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at').gte('occurred_at', startDate.toISOString()).lt('occurred_at', nextDate.toISOString()),
     locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at').order('occurred_at', { ascending: false }).limit(6),
-    locals.supabase.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_type'),
-    locals.supabase.from('budget_app_transactions').select('kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,occurred_at').gte('occurred_at', yearStart).lt('occurred_at', nextYearStart),
+    locals.supabase.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_end,period_type'),
     locals.supabase.from('budget_app_categories').select('id,name,kind')
   ]);
+  const today = now.toISOString().slice(0, 10);
+  const customTargets = (budgetsResult.data ?? []).filter((t: any) => t.period_type === 'custom' && t.period_start <= today && t.period_end >= today);
+  const budgetStart = [new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString().slice(0, 10), ...customTargets.map((t: any) => t.period_start)].sort()[0];
+  const budgetEnd = [new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1)).toISOString().slice(0, 10), ...customTargets.map((t: any) => new Date(Date.parse(t.period_end + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10))].sort().at(-1)!;
+  const budgetTransactionsResult: { data: any[]; error: { message: string } | null } = { data: [], error: null };
+  for (let offset = 0; ; offset += 1000) {
+    const result = await locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,occurred_at').gte('occurred_at', `${budgetStart}T00:00:00Z`).lt('occurred_at', `${budgetEnd}T00:00:00Z`).order('id').range(offset, offset + 999);
+    if (result.error) { budgetTransactionsResult.error = result.error; break; }
+    budgetTransactionsResult.data.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1000) break;
+  }
   const allGroups = groupsResult.data ?? [];
   const groups = allGroups.filter((group: any) => !group.archived_at);
   const accounts = new Map<string, any>();
@@ -74,8 +81,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   }));
   const budgetHighlights = (budgetsResult.data ?? []).flatMap((target: any) => {
     const periodType = target.period_type ?? 'month';
-    const range = periodRange(periodType, now);
-    if (target.period_start !== range.start) return [];
+    const range = periodType === 'custom' && target.period_end
+      ? { start: target.period_start, end: new Date(Date.parse(target.period_end + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10) }
+      : periodRange(periodType, now);
+    if (periodType === 'custom' ? today < range.start || today >= range.end : target.period_start !== range.start) return [];
     let actual = 0n;
     for (const tx of budgetTransactionsResult.data ?? []) {
       const occurred = String(tx.occurred_at);

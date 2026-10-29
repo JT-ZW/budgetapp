@@ -47,7 +47,7 @@ try {
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon;
   `);
-  for (const file of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql', '0007_app_sessions.sql', '0008_restrict_anonymous_access.sql']) {
+  for (const file of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql', '0007_app_sessions.sql', '0008_restrict_anonymous_access.sql', '0009_lending.sql', '0010_custom_budget_periods.sql']) {
     // PGlite includes gen_random_uuid in core; the extension itself is unnecessary.
     await db.exec(readFileSync(`supabase/migrations/${file}`, 'utf8').replace('create extension if not exists pgcrypto;', ''));
   }
@@ -121,7 +121,7 @@ try {
   assert.equal((await db.query('select * from public.budget_app_credit_movements')).rows.length, 0);
   assert.equal((await db.query('select * from public.budget_app_credit_instalments')).rows.length, 0);
   await assert.rejects(() => rpc('repay', { credit_id: external, account_id: bank, principal: '1', charges: '0', occurred_on: '2026-01-02' }), /not found/);
-  await assert.rejects(() => rpc('create', initial), /active receiving/);
+  await assert.rejects(() => rpc('create', initial), /active wallet/);
   await db.exec('set role anon');
   await assert.rejects(() => rpc('create', initial), /permission denied/);
   console.log('PASS: owner isolation, RPC authorization, direct-write protection');

@@ -1,5 +1,13 @@
 # Release preparation — 22 October 2026
 
+## Lending and custom budgets — 29 October 2026
+
+Migrations `0009_lending.sql` and `0010_custom_budget_periods.sql` were installed together in the configured Supabase database and verified with a read-only metadata check. Existing financial records were preserved. This update did not deploy the application or apply the previously documented migration 0008 permission cleanup.
+
+Source checks passed with zero errors/warnings. The full isolated suite passed, including lending disbursements, repayments into another wallet, instalment allocation, settlement, overpayment/currency rejection, statement reconciliation, and exclusion from income/spending and debt commitments. Custom budget tests cover saving/updating, distinct end dates, inclusive boundaries, cross-year totals, more than 1,000 transactions, invalid dates, and upcoming/completed targets.
+
+Client/server production compilation passed; Vercel packaging remains blocked by Windows filesystem permissions. Native browser access timed out, so desktop/mobile visual acceptance remains outstanding. The feature migration installer is `node --env-file=.env scripts/migrate-lending-budgets.mjs` (metadata check) or the same command with `--apply` (transactional installation).
+
 The application is prepared for a preview release, subject to the remaining gates below. No live database changes or deployment were performed during this review.
 
 ## Verified

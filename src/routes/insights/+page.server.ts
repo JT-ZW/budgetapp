@@ -220,7 +220,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           running += delta;
           // Credit principal is cash movement, excluded from income/expense filters.
           if (!collect || delta === 0n || statementMode !== 'both') return;
-          const type = row.kind === 'borrow' ? 'Credit borrowing' : 'Credit repayment';
+          const type = row.kind === 'lend' ? 'Money lent' : row.kind === 'collect' ? 'Lending repayment received' : row.kind === 'borrow' ? 'Credit borrowing' : 'Credit repayment';
           const amount = delta < 0n ? -delta : delta;
           statement.rows.push({ date: row.occurred_at, description: type, reference: row.id, type, debit: delta < 0n ? decimal(amount) : '', credit: delta > 0n ? decimal(amount) : '', balance: decimal(running) });
           return;

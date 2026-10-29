@@ -18,6 +18,14 @@ Run these files, in this order, in Supabase Dashboard > SQL Editor:
 8. `supabase/migrations/0006_credit.sql`
 9. `supabase/migrations/0007_app_sessions.sql`
 10. `supabase/migrations/0008_restrict_anonymous_access.sql`
+11. `supabase/migrations/0009_lending.sql`
+12. `supabase/migrations/0010_custom_budget_periods.sql`
+
+For an existing database with Credit already installed, apply only the missing migrations. The new feature migrations preserve existing financial records. With a private `SUPABASE_DB_URL` in `.env`, check their status with `node --env-file=.env scripts/migrate-lending-budgets.mjs`, then install them with the same command plus `--apply`. The installer runs both migrations in one transaction and skips already-installed features. Never expose this private connection string to the browser.
+
+Credit now has **Money I owe** and **Money I lend** sections. Lending records track the borrower, original wallet, principal, dates, instalments and repayments. Recording lending reduces the selected wallet; recording a repayment increases any active wallet you select in the same currency. Lending tracks principal only, without interest or fees. Principal stays outside income and spending, and money owed to you is excluded from borrowing commitments. Lending and repayments also appear in Transactions and wallet statements.
+
+Budgets support **Custom dates** alongside calendar periods. Enter a start and end date; both days are included. Custom targets can span months or years and support spending caps, income targets and savings allocations. They remain visible on Budgets when upcoming or completed, while Overview highlights only current periods. Saving the same wallet, category, currency, goal and exact dates updates that target; changing the end date creates a separate target.
 
 Credit tracks external loans and same-currency borrowing between your wallets. Recording borrowing moves cash immediately without counting principal as income. Add custom instalment amounts and dates, change the final repayment date, and record partial or early payments. Payments cover scheduled instalments in due-date order; any unscheduled balance is due on the final repayment date. Removing an instalment changes the plan only and preserves payment history. External loans support a manually entered fixed total for interest and fees; only paid charges count as expenses. Credit reminders appear on Overview and Budgets, and credit movements appear in Transactions. USD and ZiG remain separate. Apply migration 0006 once before using Credit; it builds on the existing wallet and investment migrations.
 

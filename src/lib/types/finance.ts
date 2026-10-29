@@ -4,7 +4,7 @@ export type WalletChannel = 'ecocash' | 'bank' | 'cash';
 export type TransactionKind = 'income' | 'expense' | 'transfer';
 export type CategoryKind = 'income' | 'expense';
 export type BudgetGoalKind = 'spending_cap' | 'income_target' | 'savings_target';
-export type BudgetPeriodType = 'week' | 'month' | 'quarter' | 'year';
+export type BudgetPeriodType = 'week' | 'month' | 'quarter' | 'year' | 'custom';
 
 export interface WalletGroup {
 	id: string;
@@ -59,6 +59,7 @@ export interface BudgetTarget {
 	category_id: string | null;
 	amount: string;
 	period_start: string;
+	period_end: string | null;
 	period_type: BudgetPeriodType;
 	created_at: string;
 }

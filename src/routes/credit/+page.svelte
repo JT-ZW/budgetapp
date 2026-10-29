@@ -9,6 +9,9 @@
   import type { PageData, ActionData } from './$types';
   let { data, form }: { data: PageData; form: ActionData } = $props();
   let kind = $state('external');
+  let section = $state('borrowing');
+  const sectionCredits = $derived(data.credits.filter((c) => section === 'lending' ? c.kind === 'lent' : c.kind !== 'lent'));
+  function switchSection(value: string) { section = value; kind = value === 'lending' ? 'lent' : 'external'; selected = ''; }
   let receiving = $state('');
   let selected = $state('');
   let submitting = $state(false);
@@ -21,7 +24,7 @@
   const money = (value: string | number, currency: 'USD' | 'ZIG') => formatMoney(creditMinor(value), currency);
   const activeAccounts = $derived(data.accounts.filter((a) => a.active));
   const receivingCurrency = $derived(data.accounts.find((a) => a.id === receiving)?.currency);
-  const credits = $derived(selected ? data.credits.filter((c) => c.id === selected) : data.credits);
+  const credits = $derived(selected ? sectionCredits.filter((c) => c.id === selected) : sectionCredits);
   const submit: SubmitFunction = async (input) => {
     submitting = true;
     feedbackShown = true;
@@ -48,65 +51,70 @@
     <div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div>
   </aside>
   <main class="main-area">
-    <header class="topbar"><div><p class="date-label">Borrow with a plan</p><p class="topbar-title">Credit</p></div></header>
+    <header class="topbar"><div><p class="date-label">Borrowing & lending</p><p class="topbar-title">Credit</p></div></header>
     <div class="content-wrap credit-content">
-      <section class="welcome-row credit-intro"><div><p class="eyebrow">Borrowing & repayments</p><h1>Credit<span class="accent-period">.</span></h1><p class="welcome-copy">A clear view of what you owe, when it’s due, and how far you’ve come.</p></div><button class="primary-button credit-new-button" onclick={openBorrowing}><Plus size={17}/> New borrowing</button></section>
-      {#if data.loadError}<div class="setup-banner" role="alert"><div><strong>Credit is not ready</strong><p>{data.loadError}</p><p>Apply supabase/migrations/0006_credit.sql in Supabase, then refresh.</p></div></div>{/if}
+      <section class="welcome-row credit-intro"><div><p class="eyebrow">Borrowing, lending & repayments</p><h1>Credit<span class="accent-period">.</span></h1><p class="welcome-copy">Track what you owe, what others owe you, and every repayment.</p></div><button class="primary-button credit-new-button" onclick={openBorrowing}><Plus size={17}/> {section === 'lending' ? 'New lending' : 'New borrowing'}</button></section>
+      {#if data.loadError}<div class="setup-banner" role="alert"><div><strong>Credit is not ready</strong><p>{data.loadError}</p><p>Apply supabase/migrations/0009_lending.sql in Supabase, then refresh.</p></div></div>{/if}
       {#if form?.message && !feedbackShown}<p class="form-alert" class:credit-success={form.success} role="status">{form.message}</p>{/if}
+      <div class="credit-tabs" role="group" aria-label="Credit section"><button aria-pressed={section === 'borrowing'} class:active={section === 'borrowing'} onclick={() => switchSection('borrowing')}>Money I owe</button><button aria-pressed={section === 'lending'} class:active={section === 'lending'} onclick={() => switchSection('lending')}>Money I lend</button></div>
       <div class="credit-summary">
         {#each ['USD', 'ZIG'] as currency}
-          {@const loans = data.credits.filter((c) => c.currency === currency)}
+          {@const loans = sectionCredits.filter((c) => c.currency === currency)}
           {@const overdue = loans.reduce((sum, c) => sum + creditMinor(c.overdue), 0n)}
-          <article class="credit-summary-card" class:credit-zig={currency === 'ZIG'}><div class="credit-summary-top"><span class="credit-currency"><span class="credit-currency-dot"></span>{currency === 'ZIG' ? 'ZiG' : currency} overview</span><span class="credit-summary-icon"><CreditCard size={19}/></span></div><p class="credit-total">{formatMoney(loans.filter((c) => c.kind === 'external').reduce((sum, c) => sum + creditMinor(c.outstanding), 0n), currency as 'USD' | 'ZIG')}</p><p class="credit-total-label">External debt outstanding</p><dl><div><dt><ArrowLeftRight size={14}/> Internal reimbursements</dt><dd>{formatMoney(loans.filter((c) => c.kind === 'internal').reduce((sum, c) => sum + creditMinor(c.outstanding), 0n), currency as 'USD' | 'ZIG')}</dd></div><div class:credit-amount-overdue={overdue > 0n}><dt><CalendarDays size={14}/> Overdue</dt><dd>{formatMoney(overdue, currency as 'USD' | 'ZIG')}</dd></div></dl></article>
+          <article class="credit-summary-card" class:credit-zig={currency === 'ZIG'}><div class="credit-summary-top"><span class="credit-currency"><span class="credit-currency-dot"></span>{currency === 'ZIG' ? 'ZiG' : currency} overview</span><span class="credit-summary-icon"><CreditCard size={19}/></span></div><p class="credit-total">{formatMoney(loans.filter((c) => section === 'lending' ? c.kind === 'lent' : c.kind === 'external').reduce((sum, c) => sum + creditMinor(c.outstanding), 0n), currency as 'USD' | 'ZIG')}</p><p class="credit-total-label">{section === 'lending' ? 'Money owed to you' : 'External debt outstanding'}</p><dl>{#if section === 'borrowing'}<div><dt><ArrowLeftRight size={14}/> Internal reimbursements</dt><dd>{formatMoney(loans.filter((c) => c.kind === 'internal').reduce((sum, c) => sum + creditMinor(c.outstanding), 0n), currency as 'USD' | 'ZIG')}</dd></div>{/if}<div class:credit-amount-overdue={overdue > 0n}><dt><CalendarDays size={14}/> Overdue</dt><dd>{formatMoney(overdue, currency as 'USD' | 'ZIG')}</dd></div></dl></article>
         {/each}
       </div>
-      <div class="credit-note"><ShieldCheck size={17}/><p>Borrowed money stays separate from income. Your wallets update when you record borrowing or a repayment.</p></div>
+      <div class="credit-note"><ShieldCheck size={17}/><p>Loan principal stays separate from income and spending. Lending reduces your selected wallet; repayments received increase the wallet you choose.</p></div>
       <section class="section-block credit-create" id="new-borrowing">
-        <details bind:open={borrowingOpen}><summary><span class="credit-create-icon"><Plus size={18}/></span><span><strong>Record new borrowing</strong><small>An external loan or a temporary transfer between your wallets</small></span><ChevronDown size={18} class="credit-chevron"/></summary><p class="section-caption">This records money received now. Principal is excluded from income and spending. Internal borrowing uses wallets in the same currency.</p>
+        <details bind:open={borrowingOpen}><summary><span class="credit-create-icon"><Plus size={18}/></span><span><strong>{section === 'lending' ? 'Record money lent' : 'Record new borrowing'}</strong><small>{section === 'lending' ? 'Track a borrower, the wallet you lend from, and repayments' : 'An external loan or a temporary transfer between your wallets'}</small></span><ChevronDown size={18} class="credit-chevron"/></summary><p class="section-caption">{section === 'lending' ? 'This records money paid out to a borrower now.' : 'This records money received now.'} Principal is excluded from income and spending. Internal borrowing uses wallets in the same currency.</p>
           <form method="POST" action="?/create" class="feature-form credit-form" use:enhance={submit}>
             <label>Name<input name="name" maxlength="100" required placeholder="Laptop loan or Personal from Project A"/></label>
-            <label>Borrowing type<select name="kind" bind:value={kind}><option value="external">External loan</option><option value="internal">Between my wallets</option></select></label>
-            <label>Receiving wallet<select name="receiving_account_id" bind:value={receiving} required><option value="">Choose wallet</option>{#each activeAccounts as a}<option value={a.id}>{a.label}</option>{/each}</select></label>
-            {#if kind === 'internal'}<label>Lending wallet<select name="lending_account_id" required><option value="">Choose wallet</option>{#each activeAccounts.filter((a) => a.id !== receiving && a.currency === receivingCurrency) as a}<option value={a.id}>{a.label}</option>{/each}</select></label>{:else}<label>Lender<input name="lender" maxlength="100" required placeholder="Bank, company or person"/></label>{/if}
-            <label>Amount borrowed<input name="principal" type="number" min="0.01" step="0.01" required/></label>
+            {#if section === 'lending'}<input type="hidden" name="kind" value="lent"/>{:else}<label>Borrowing type<select name="kind" bind:value={kind}><option value="external">External loan</option><option value="internal">Between my wallets</option></select></label>{/if}
+            <label>{section === 'lending' ? 'Lend from wallet' : 'Receiving wallet'}<select name="receiving_account_id" bind:value={receiving} required><option value="">Choose wallet</option>{#each activeAccounts as a}<option value={a.id}>{a.label}</option>{/each}</select></label>
+            {#if kind === 'internal'}<label>Lending wallet<select name="lending_account_id" required><option value="">Choose wallet</option>{#each activeAccounts.filter((a) => a.id !== receiving && a.currency === receivingCurrency) as a}<option value={a.id}>{a.label}</option>{/each}</select></label>{:else}<label>{section === 'lending' ? 'Borrower name' : 'Lender'}<input name="lender" maxlength="100" required placeholder="Bank, company or person"/></label>{/if}
+            <label>{section === 'lending' ? 'Amount lent' : 'Amount borrowed'}<input name="principal" type="number" min="0.01" step="0.01" required/></label>
             {#if kind === 'external'}<label>Total agreed interest & fees<input name="charges" type="number" min="0" step="0.01" value="0" required/><small>Fixed total, entered manually; no automatic interest calculation.</small></label>{:else}<input name="charges" type="hidden" value="0"/>{/if}
-            <label>Borrowed on<input name="borrowed_on" type="date" value={data.today} max={data.today} required/></label><label>Final repayment due<input name="due_on" type="date" required/></label>
+            <label>{section === 'lending' ? 'Lent on' : 'Borrowed on'}<input name="borrowed_on" type="date" value={data.today} max={data.today} required/></label><label>Final repayment due<input name="due_on" type="date" required/></label>
             <label class="form-wide">Notes<textarea name="notes" maxlength="1000" rows="2"></textarea></label>
-            <div class="form-wide form-footer"><p>Add any instalment amounts and dates after saving.</p><button class="primary-button" disabled={submitting || !!data.loadError}>Record borrowing</button></div>
+            <div class="form-wide form-footer"><p>Add any instalment amounts and dates after saving.</p><button class="primary-button" disabled={submitting || !!data.loadError}>{section === 'lending' ? 'Record lending' : 'Record borrowing'}</button></div>
           </form>
         </details>
       </section>
-      <div class="section-heading credit-list-heading"><div><p class="eyebrow">Your commitments</p><h2>Loans & wallet borrowing <span class="credit-count">{data.credits.length}</span></h2></div><label class="credit-filter"><span>Show</span><select bind:value={selected}><option value="">All credit</option>{#each data.credits as c}<option value={c.id}>{c.name}</option>{/each}</select></label></div>
-      {#each credits as c}
+      <div class="section-heading credit-list-heading"><div><p class="eyebrow">{section === 'lending' ? 'Your receivables' : 'Your commitments'}</p><h2>{section === 'lending' ? 'Loans to other people' : 'Loans & wallet borrowing'} <span class="credit-count">{sectionCredits.length}</span></h2></div><label class="credit-filter"><span>Show</span><select bind:value={selected}><option value="">All credit</option>{#each sectionCredits as c}<option value={c.id}>{c.name}</option>{/each}</select></label></div>
+      {#each credits as c (c.id)}
           {@const totalOwed = creditMinor(c.principal) + creditMinor(c.charges)}
           {@const repaymentPercent = totalOwed > 0n ? Number(creditMinor(c.paid) * 100n / totalOwed) : 0}
 
         <section class="section-block credit-card">
-          <div class="section-heading"><div><p class="eyebrow">{c.kind === 'internal' ? 'Internal wallet borrowing' : `External loan · ${c.lender}`}</p><h2>{c.name}</h2><p class="section-caption">Received in {data.accounts.find((a) => a.id === c.receiving_account_id)?.label}{c.kind === 'internal' ? ` from ${data.accounts.find((a) => a.id === c.lending_account_id)?.label}` : ''}</p></div><span class="currency-badge" class:credit-overdue={c.status === 'Overdue'}>{c.status}</span></div>
+          <div class="section-heading"><div><p class="eyebrow">{c.kind === 'lent' ? `Lent to ${c.lender}` : c.kind === 'internal' ? 'Internal wallet borrowing' : `External loan · ${c.lender}`}</p><h2>{c.name}</h2><p class="section-caption">{c.kind === 'lent' ? 'Lent from' : 'Received in'} {data.accounts.find((a) => a.id === c.receiving_account_id)?.label}{c.kind === 'internal' ? ` from ${data.accounts.find((a) => a.id === c.lending_account_id)?.label}` : ''}</p></div><span class="currency-badge" class:credit-overdue={c.status === 'Overdue'}>{c.status}</span></div>
           <div class="credit-stats"><div><small>Outstanding</small><strong>{money(c.outstanding, c.currency)}</strong></div><div><small>Repaid</small><strong>{money(c.paid, c.currency)}</strong></div><div><small>Next due</small><strong>{c.nextDue ?? 'Complete'}</strong></div><div><small>Final repayment</small><strong>{c.due_on}</strong></div></div>
           <div class="credit-progress-caption"><span>Repayment progress</span><strong>{repaymentPercent}% repaid</strong></div><div class="credit-progress" role="progressbar" aria-label={`${c.name} repayment progress`} aria-valuenow={repaymentPercent} aria-valuemin="0" aria-valuemax="100"><span style:width={`${repaymentPercent}%`}></span></div>
-          <p class="section-caption">Borrowed {money(c.principal, c.currency)} on {c.borrowed_on}{creditMinor(c.charges) > 0n ? ` + ${money(c.charges, c.currency)} agreed interest / fees` : ''}. {c.notes}</p>
+          <p class="section-caption">{c.kind === 'lent' ? 'Lent' : 'Borrowed'} {money(c.principal, c.currency)} on {c.borrowed_on}{creditMinor(c.charges) > 0n ? ` + ${money(c.charges, c.currency)} agreed interest / fees` : ''}. {c.notes}</p>
           <h3>Repayment plan</h3><p class="section-caption">Payments cover the earliest instalments first. Unscheduled balance remaining: {money(c.unscheduledOutstanding, c.currency)} — due by {c.due_on}. Plans do not move money.</p>
           {#if c.schedule.length}<div class="ledger-table-wrap"><table class="ledger-table"><thead><tr><th>Due date</th><th>Planned</th><th>Paid</th><th>Remaining</th><th>Status</th><th></th></tr></thead><tbody>{#each c.schedule as i}<tr><td>{i.due_on}</td><td>{money(i.amount, c.currency)}</td><td>{money(i.paid, c.currency)}</td><td>{money(i.remaining, c.currency)}</td><td>{i.status}</td><td><form method="POST" action="?/removeInstalment" use:enhance={submit}><input type="hidden" name="credit_id" value={c.id}/><input type="hidden" name="instalment_id" value={i.id}/><button class="secondary-button" disabled={submitting} aria-label={`Remove instalment due ${i.due_on}`}>Remove</button></form></td></tr>{/each}</tbody></table></div>{/if}
           <div class="credit-actions">
             <details><summary>Add an instalment</summary><form method="POST" action="?/instalment" class="feature-form credit-form" use:enhance={submit}><input type="hidden" name="credit_id" value={c.id}/><label>Due date<input name="due_on" type="date" min={c.borrowed_on} max={c.due_on} required/></label><label>Amount ({c.currency})<input name="amount" type="number" min="0.01" step="0.01" max={c.unplanned} required/></label><button class="primary-button" disabled={submitting || creditMinor(c.unplanned) === 0n}>Add instalment</button></form></details>
             <details><summary>Change final repayment date</summary><form method="POST" action="?/dueDate" class="feature-form credit-form" use:enhance={submit}><input type="hidden" name="credit_id" value={c.id}/><label>Final due date<input name="due_on" type="date" min={c.borrowed_on} value={c.due_on} required/></label><button class="secondary-button" disabled={submitting}>Save date</button></form></details>
             {#if c.status !== 'Repaid'}<details><summary>Record a repayment</summary><p class="section-caption">Partial and early payments are welcome. Actual payments update wallets immediately.</p><form method="POST" action="?/repay" class="feature-form credit-form" use:enhance={submit}>
-              <input type="hidden" name="credit_id" value={c.id}/><label>Pay from<select name="account_id" required><option value="">Choose wallet</option>{#each activeAccounts.filter((a) => a.currency === c.currency && a.id !== c.lending_account_id) as a}<option value={a.id}>{a.label}</option>{/each}</select></label><label>Payment date<input name="occurred_on" type="date" min={c.borrowed_on} max={data.today} value={data.today} required/></label>
+              <input type="hidden" name="credit_id" value={c.id}/><label>{c.kind === 'lent' ? 'Receive repayment into' : 'Pay from'}<select name="account_id" required><option value="">Choose wallet</option>{#each activeAccounts.filter((a) => a.currency === c.currency && a.id !== c.lending_account_id) as a}<option value={a.id}>{a.label}</option>{/each}</select></label><label>Payment date<input name="occurred_on" type="date" min={c.borrowed_on} max={data.today} value={data.today} required/></label>
               <label>Principal repaid<input name="principal" type="number" min="0" max={c.remainingPrincipal} step="0.01" value="0" required/></label>
               {#if creditMinor(c.remainingCharges) > 0n}<label>Interest / fees paid<input name="charges" type="number" min="0" max={c.remainingCharges} step="0.01" value="0" required/></label><label>Expense category (when paying charges)<select name="category_id"><option value="">Choose category</option>{#each data.categories as category}<option value={category.id}>{category.name}</option>{/each}</select></label>{:else}<input type="hidden" name="charges" value="0"/>{/if}
-              <div class="form-wide form-footer"><p>{c.kind === 'internal' ? 'Principal returns to the original lending wallet.' : 'Principal reduces debt. Interest and fees are spending.'}</p><button class="primary-button" disabled={submitting}>Save repayment</button></div>
+              <div class="form-wide form-footer"><p>{c.kind === 'lent' ? 'Repayments increase the receiving wallet and reduce the amount owed to you.' : c.kind === 'internal' ? 'Principal returns to the original lending wallet.' : 'Principal reduces debt. Interest and fees are spending.'}</p><button class="primary-button" disabled={submitting}>Save repayment</button></div>
             </form></details>{/if}
           </div>
-          {#if c.payments.length}<h3>Payment history</h3><div class="ledger-table-wrap"><table class="ledger-table"><thead><tr><th>Date</th><th>Paying wallet</th><th>Principal</th><th>Interest / fees</th></tr></thead><tbody>{#each c.payments as p}<tr><td>{p.occurred_on}</td><td>{data.accounts.find((a) => a.id === p.account_id)?.label}</td><td>{money(p.principal, c.currency)}</td><td>{money(p.charges, c.currency)}</td></tr>{/each}</tbody></table></div>{/if}
+          {#if c.payments.length}<h3>Payment history</h3><div class="ledger-table-wrap"><table class="ledger-table"><thead><tr><th>Date</th><th>{c.kind === 'lent' ? 'Receiving wallet' : 'Paying wallet'}</th><th>Principal</th><th>Interest / fees</th></tr></thead><tbody>{#each c.payments as p}<tr><td>{p.occurred_on}</td><td>{data.accounts.find((a) => a.id === p.account_id)?.label}</td><td>{money(p.principal, c.currency)}</td><td>{money(p.charges, c.currency)}</td></tr>{/each}</tbody></table></div>{/if}
         </section>
-      {:else}<section class="credit-empty"><span class="credit-empty-icon"><CreditCard size={29}/></span><p class="eyebrow">A fresh start</p><h2>No borrowing recorded</h2><p>Keep your loans and wallet borrowing in one place.<br/>Add your first record, then plan repayments at your own pace.</p><button class="primary-button credit-new-button" onclick={openBorrowing}><Plus size={16}/> Add your first borrowing <ArrowUpRight size={15}/></button><span class="credit-empty-footnote"><CalendarDays size={14}/> Flexible instalments. Clear due dates.</span></section>{/each}
+      {:else}<section class="credit-empty"><span class="credit-empty-icon"><CreditCard size={29}/></span><p class="eyebrow">A fresh start</p><h2>{section === 'lending' ? 'No lending recorded' : 'No borrowing recorded'}</h2><p>Keep money you owe and money owed to you in one place.<br/>Add your first record, then plan repayments at your own pace.</p><button class="primary-button credit-new-button" onclick={openBorrowing}><Plus size={16}/> {section === 'lending' ? 'Add your first lending record' : 'Add your first borrowing'} <ArrowUpRight size={15}/></button><span class="credit-empty-footnote"><CalendarDays size={14}/> Flexible instalments. Clear due dates.</span></section>{/each}
     </div>
   </main>
   
 </div>
 
 <style>
+  .credit-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
+  .credit-tabs button { border:1px solid var(--line); border-radius:10px; padding:12px 18px; background:var(--surface, white); color:var(--ink); font:inherit; cursor:pointer; }
+  .credit-tabs button.active { background:var(--green); color:white; }
+  .credit-tabs button:focus-visible { outline:3px solid #8da96f; outline-offset:3px; }
   .credit-content { max-width: 1250px; padding-bottom: 56px; }
   .credit-intro { align-items: center; gap: 24px; }
   .credit-intro .welcome-copy { max-width: 580px; line-height: 1.7; }

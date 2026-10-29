@@ -2,12 +2,12 @@ import { decimalToMinorUnits } from './finance';
 import type { Currency } from './types/finance';
 
 interface CreditRecord {
-  id: string; name: string; kind: 'internal' | 'external'; lender: string;
+  id: string; name: string; kind: 'internal' | 'external' | 'lent'; lender: string;
   lending_account_id: string | null; receiving_account_id: string; currency: Currency;
   principal: string | number; charges: string | number; borrowed_on: string; due_on: string; notes: string;
 }
 export interface CreditMovement {
-  id: string; credit_id: string; kind: 'borrow' | 'repay'; principal: string | number; charges: string | number;
+  id: string; credit_id: string; kind: 'borrow' | 'repay' | 'lend' | 'collect'; principal: string | number; charges: string | number;
   account_id: string; destination_account_id: string | null; occurred_on: string;
 }
 interface CreditInstalment { id: string; credit_id: string; due_on: string; amount: string | number }
@@ -18,7 +18,7 @@ export function creditWalletDelta(movement: CreditMovement, accountIds: Readonly
   let delta = 0n;
   const principal = creditMinor(movement.principal);
   if (accountIds.has(movement.account_id)) {
-    delta += movement.kind === 'borrow' && !movement.destination_account_id ? principal : -principal;
+    delta += ['borrow', 'collect'].includes(movement.kind) && !movement.destination_account_id ? principal : -principal;
   }
   if (movement.destination_account_id && accountIds.has(movement.destination_account_id)) delta += principal;
   return delta;
@@ -28,7 +28,7 @@ export function creditDecimal(value: bigint): string {
   return `${sign}${amount / 100n}.${String(amount % 100n).padStart(2, '0')}`;
 }
 export function creditProgress(credit: CreditRecord, movements: CreditMovement[], instalments: CreditInstalment[], today: string) {
-  const payments = movements.filter((m) => m.credit_id === credit.id && m.kind === 'repay');
+  const payments = movements.filter((m) => m.credit_id === credit.id && ['repay', 'collect'].includes(m.kind));
   const paidPrincipal = payments.reduce((sum, m) => sum + creditMinor(m.principal), 0n);
   const paidCharges = payments.reduce((sum, m) => sum + creditMinor(m.charges), 0n);
   const paid = paidPrincipal + paidCharges;

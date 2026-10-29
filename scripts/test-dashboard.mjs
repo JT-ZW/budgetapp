@@ -29,7 +29,7 @@ function database(rows, broken = false) {
         : table === 'budget_app_categories' ? categories
         : table === 'budget_app_transactions' ? rows : [];
       const builder = {
-        select() { return this; }, gte() { return this; }, lt() { return this; }, order() { return this; }, limit() { return this; },
+        select() { return this; }, gte() { return this; }, lt() { return this; }, order() { return this; }, limit() { return this; }, range() { return this; },
         then(resolve) { resolve({ data, error: broken ? { message: 'Unavailable' } : null }); }
       };
       return builder;
