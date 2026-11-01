@@ -19,10 +19,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   if (authError || !auth.user) redirect(303, '/');
   const pageSize = 10;
   let page = Math.max(1, Number.parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
-  const [accountsResult, groupsResult, categoriesResult] = await Promise.all([
+  const [accountsResult, groupsResult, categoriesResult, shortcutsResult] = await Promise.all([
     locals.supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,archived_at'),
     locals.supabase.from('budget_app_wallet_groups').select('id,name,kind').is('archived_at', null).order('name'),
-    locals.supabase.from('budget_app_categories').select('id,name,kind').order('kind').order('name')
+    locals.supabase.from('budget_app_categories').select('id,name,kind').order('kind').order('name'),
+    locals.supabase.from('budget_app_transaction_shortcuts').select('*').order('created_at')
   ]);
   const activeGroups = groupsResult.data ?? [];
   const activeGroupIds = new Set(activeGroups.map((group) => group.id));
@@ -61,6 +62,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     : { data: [], error: null };
   return {
     accounts: allActiveWalletAccounts,
+    shortcuts: shortcutsResult.data ?? [],
+    shortcutError: shortcutsResult.error ? 'Shortcuts could not be loaded. Refresh the page and try again.' : null,
     groups: activeGroups,
     categories: categoriesResult.data ?? [],
     transactions: transactionsResult.data ?? [],
@@ -83,6 +86,15 @@ export const actions: Actions = {
     const { data: auth, error: authError } = await locals.supabase.auth.getUser();
     if (authError || !auth.user) redirect(303, '/');
     const form = await request.formData();
+    const shortcutId = text(form, 'shortcut_id');
+    const requestId = text(form, 'shortcut_request_id');
+    if (shortcutId) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) return fail(400, { message: 'Refresh and select the shortcut again.' });
+      const shortcut = await locals.supabase.from('budget_app_transaction_shortcuts').select('*').eq('id', shortcutId).eq('owner_id', auth.user.id).maybeSingle();
+      if (shortcut.error || !shortcut.data) return fail(400, { message: 'This shortcut is no longer available. Refresh the page.' });
+      for (const key of ['kind', 'amount', 'account_id', 'category_id'] as const) form.set(key, String(shortcut.data[key]));
+      form.set('description', shortcut.data.name);
+    }
     const kind = text(form, 'kind');
     const accountId = text(form, 'account_id');
     const destinationId = text(form, 'destination_account_id');
@@ -96,8 +108,10 @@ export const actions: Actions = {
       if (!categoryId && kind !== 'transfer') throw new Error('Choose a category for this transaction.');
       if (!dateValue || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || Number.isNaN(Date.parse(`${dateValue}T12:00:00Z`))) throw new Error('Choose a valid transaction date.');
 
-      const { data: source, error: sourceError } = await locals.supabase.from('budget_app_wallet_accounts').select('id,currency').eq('id', accountId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
+      const { data: source, error: sourceError } = await locals.supabase.from('budget_app_wallet_accounts').select('id,currency,wallet_group_id').eq('id', accountId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
       if (sourceError || !source) throw new Error('Choose an active source wallet.');
+      const group = await locals.supabase.from('budget_app_wallet_groups').select('id').eq('id', source.wallet_group_id).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
+      if (group.error || !group.data) throw new Error('Choose an active source wallet.');
       let destinationAmount: string | null = null;
       let exchangeRate: string | null = null;
       if (kind === 'transfer') {
@@ -120,12 +134,13 @@ export const actions: Actions = {
       }
       const { error } = await locals.supabase.from('budget_app_transactions').insert({
         owner_id: auth.user.id, kind, account_id: accountId,
+        ...(shortcutId ? { shortcut_request_id: requestId } : {}),
         destination_account_id: kind === 'transfer' ? destinationId : null,
         amount, destination_amount: destinationAmount, exchange_rate: exchangeRate,
         fee_amount: feeAmount, category_id: categoryId || null, description,
         occurred_at: new Date(`${dateValue}T12:00:00Z`).toISOString()
       });
-      if (error) throw new Error(error.message);
+      if (error && !(shortcutId && error.code === '23505')) throw new Error(error.message);
     } catch (error) {
       return fail(400, { message: error instanceof Error ? error.message : 'Could not save this transaction.' });
     }

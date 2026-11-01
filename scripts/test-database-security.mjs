@@ -25,7 +25,7 @@ for (const setup of ['migrations', 'sql-editor']) {
       has_table_privilege('anon',c.oid,'SELECT,INSERT,UPDATE,DELETE') as anon_access
       from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname='public' and c.relkind='r' and starts_with(c.relname,'budget_app_')`)).rows;
-    assert.equal(tables.length, 16);
+    assert.equal(tables.length, 17);
     assert.ok(tables.every((table) => table.rls && !table.anon_access), 'all app tables need RLS and no anonymous grants');
     const exposed = (await db.query(`select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='public' and starts_with(p.proname,'budget_app_') and has_function_privilege('anon',p.oid,'EXECUTE')`)).rows;
@@ -42,6 +42,27 @@ for (const setup of ['migrations', 'sql-editor']) {
       const count = (await db.query(`select count(*)::int as n from public."${table.name}" where owner_id=$1`, [other])).rows[0].n;
       assert.equal(count, 0, `${table.name} must isolate other owners`);
     }
+    const wallet = (await db.query('select id from public.budget_app_wallet_accounts limit 1')).rows[0].id;
+    const category = (await db.query("select id from public.budget_app_categories where kind='expense' limit 1")).rows[0].id;
+    const shortcut = (await db.query(`insert into public.budget_app_transaction_shortcuts(owner_id,name,kind,amount,account_id,category_id)
+      values ($1,'Transport to work','expense',2.50,$2,$3) returning id`, [owner, wallet, category])).rows[0].id;
+    await db.query('update public.budget_app_transaction_shortcuts set amount=3 where id=$1', [shortcut]);
+    assert.equal((await db.query('select amount from public.budget_app_transaction_shortcuts where id=$1', [shortcut])).rows[0].amount, '3.00');
+    await assert.rejects(db.query(`insert into public.budget_app_transaction_shortcuts(owner_id,name,kind,amount,account_id,category_id)
+      values ($1,'Invalid amount','expense',0,$2,$3)`, [owner, wallet, category]));
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [other]);
+    assert.equal((await db.query('select * from public.budget_app_transaction_shortcuts where id=$1', [shortcut])).rows.length, 0);
+    assert.equal((await db.query('delete from public.budget_app_transaction_shortcuts where id=$1 returning id', [shortcut])).rows.length, 0);
+    await assert.rejects(db.query(`insert into public.budget_app_transaction_shortcuts(owner_id,name,kind,amount,account_id,category_id)
+      values ($1,'Foreign wallet','expense',2,$2,$3)`, [other, wallet, category]));
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [owner]);
+    const confirmation = '33333333-3333-4333-8333-333333333333';
+    const record = () => db.query(`insert into public.budget_app_transactions(owner_id,kind,account_id,category_id,amount,description,shortcut_request_id)
+      values ($1,'expense',$2,$3,3,'Transport to work',$4)`, [owner, wallet, category, confirmation]);
+    await record();
+    await assert.rejects(record(), 'a retried confirmation must not record twice');
+    await db.query('delete from public.budget_app_transaction_shortcuts where id=$1', [shortcut]);
+    assert.equal((await db.query('select * from public.budget_app_transactions where shortcut_request_id=$1', [confirmation])).rows.length, 1, 'deleting shortcuts preserves the ledger');
     await db.exec('reset role');
     await db.exec(readFileSync('supabase/migrations/0008_restrict_anonymous_access.sql','utf8'));
     console.log(`PASS: ${setup} setup, all migrations, RLS, anonymous grants, owner isolation, bootstrap and wallet RPCs; hardening is rerunnable`);

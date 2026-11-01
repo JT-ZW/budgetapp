@@ -24,3 +24,7 @@ Finally apply `migrations/0004_stock_purchase_workflows.sql`. Existing stock pos
 Apply `migrations/0005_stock_brokerage_purchases.sql` to also record new purchases against cash already deposited in a stocks brokerage account. The purchase form lets the user choose brokerage cash or a direct personal-wallet debit.
 
 Balances are derived from the ledger: opening balance + income + incoming transfer amounts − expenses − outgoing transfer principal − transfer fees. USD and ZiG totals stay separate; the app will not add unlike currencies into a misleading combined balance.
+
+## Transaction shortcuts
+
+Apply `migrations/0011_transaction_shortcuts.sql` after the existing migrations. Manage saved income/spending shortcuts in Settings, then select and confirm them on Transactions. Shortcuts never run automatically. Each confirmation has a unique request ID to prevent duplicate ledger entries on retries.

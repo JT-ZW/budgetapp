@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DatePicker from '$lib/components/DatePicker.svelte';
   import Brand from '$lib/components/Brand.svelte';
   import CreditCommitments from '$lib/components/CreditCommitments.svelte';
   import { ArrowLeftRight, BarChart3, LayoutDashboard, LogOut, Plus, Settings2, WalletCards, Target, Trash2 } from 'lucide-svelte';
@@ -36,7 +37,7 @@
           <label>Currency<select name="currency"><option value="USD">USD</option><option value="ZIG">ZiG</option></select></label>
           <label>Goal<select name="goal_kind" bind:value={goalKind}><option value="spending_cap">Spending cap</option><option value="income_target">Income target</option><option value="savings_target">Savings allocation</option></select></label>
           <label>Timeline<select name="period_type" bind:value={periodType}><option value="week">Weekly</option><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="year">Yearly</option><option value="custom">Custom dates</option></select></label>
-          {#if periodType === 'custom'}<label>Start date<input name="period_start" type="date" bind:value={customStart} max={customEnd || undefined} required/></label><label>End date (inclusive)<input name="period_end" type="date" bind:value={customEnd} min={customStart || undefined} required/></label>{/if}
+          {#if periodType === 'custom'}<label>Start date<DatePicker name="period_start" bind:value={customStart} max={customEnd || undefined} required/></label><label>End date (inclusive)<DatePicker name="period_end" bind:value={customEnd} min={customStart || undefined} required/></label>{/if}
           {#if goalKind === 'savings_target'}
             <div class="savings-guidance"><strong>Use a dedicated project wallet as your savings pot.</strong><span>Create one in Settings, then transfer money into it. Transfers in count toward this target; transfers out reduce it.</span></div>
           {:else}

@@ -1,3 +1,4 @@
+import { saveShortcut } from '$lib/server/shortcuts';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 const clean = (form: FormData, name: string) => String(form.get(name) ?? '').trim();
@@ -9,18 +10,27 @@ async function signedIn(locals: App.Locals) {
 }
 export const load: PageServerLoad = async ({ locals }) => {
   const { supabase } = await signedIn(locals);
-  const [groups, categories, accounts] = await Promise.all([
+  const [groups, categories, accounts, shortcuts] = await Promise.all([
     supabase.from('budget_app_wallet_groups').select('id,name,kind,archived_at,created_at').order('created_at'),
     supabase.from('budget_app_categories').select('id,name,kind,created_at').order('kind').order('name'),
-    supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,opening_balance,archived_at')
+    supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,opening_balance,archived_at'),
+    supabase.from('budget_app_transaction_shortcuts').select('*').order('created_at')
   ]);
   const groupById = Object.fromEntries((groups.data ?? []).map((group: any) => [group.id, group]));
   const allAccounts = accounts.data ?? [];
   const accountRows = allAccounts.filter((account: any) => !account.archived_at && !groupById[account.wallet_group_id]?.archived_at).map((account: any) => ({ ...account, group_name: groupById[account.wallet_group_id]?.name ?? 'Wallet', group_kind: groupById[account.wallet_group_id]?.kind ?? 'project' }));
   const groupsWithCurrencies = (groups.data ?? []).map((group: any) => ({ ...group, currencies: allAccounts.filter((account: any) => account.wallet_group_id === group.id && !account.archived_at).map((account: any) => account.currency) }));
-  return { groups: groupsWithCurrencies, categories: categories.data ?? [], accounts: accountRows, loadError: groups.error?.message ?? categories.error?.message ?? accounts.error?.message ?? null };
+  return { shortcuts: shortcuts.data ?? [], shortcutError: shortcuts.error ? 'Shortcuts could not be loaded. Refresh the page and try again.' : null, groups: groupsWithCurrencies, categories: categories.data ?? [], accounts: accountRows, loadError: groups.error?.message ?? categories.error?.message ?? accounts.error?.message ?? null };
 };
 export const actions: Actions = {
+  saveShortcut: ({ request, locals }) => saveShortcut(request, locals),
+  deleteShortcut: async ({ request, locals }) => {
+    const { supabase, user } = await signedIn(locals);
+    const form = await request.formData();
+    const { error } = await supabase.from('budget_app_transaction_shortcuts').delete().eq('id', clean(form, 'id')).eq('owner_id', user.id);
+    if (error) return fail(400, { message: 'Could not delete this shortcut.' });
+    redirect(303, '/settings#transaction-shortcuts');
+  },
   createProject: async ({ request, locals }) => {
     const { supabase } = await signedIn(locals);
     const form = await request.formData(); const name = clean(form, 'name'); const currencies = form.getAll('currencies').map(String);
