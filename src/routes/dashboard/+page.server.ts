@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { loadAllRows } from '$lib/server/pagination';
 import type { PageServerLoad } from './$types';
 import { loadCreditCommitments } from '$lib/server/credit';
 function minor(value: string): bigint { const normalized = String(value).trim(); const negative = normalized.startsWith('-'); const [whole, fraction = ''] = normalized.replace(/^-/, '').split('.'); const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); return negative ? -amount : amount; }
@@ -17,12 +18,12 @@ export const load: PageServerLoad = async ({ locals }) => {
   const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const nextDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const [groupsResult, balancesResult, monthResult, recentResult, budgetsResult, categoriesResult] = await Promise.all([
-    locals.supabase.from('budget_app_wallet_groups').select('id,name,kind,archived_at,created_at,wallet_accounts:budget_app_wallet_accounts(id,currency,channel,opening_balance,archived_at)'),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_wallet_groups').select('id,name,kind,archived_at,created_at,wallet_accounts:budget_app_wallet_accounts(id,currency,channel,opening_balance,archived_at)').order('id').range(from, to)),
     locals.supabase.rpc('budget_app_get_account_balances'),
-    locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at').gte('occurred_at', startDate.toISOString()).lt('occurred_at', nextDate.toISOString()),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at').gte('occurred_at', startDate.toISOString()).lt('occurred_at', nextDate.toISOString()).order('id').range(from, to)),
     locals.supabase.from('budget_app_transactions').select('id,kind,account_id,destination_account_id,amount,destination_amount,fee_amount,category_id,description,occurred_at').order('occurred_at', { ascending: false }).limit(6),
-    locals.supabase.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_end,period_type'),
-    locals.supabase.from('budget_app_categories').select('id,name,kind')
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_budget_targets').select('id,wallet_group_id,currency,goal_kind,category_id,amount,period_start,period_end,period_type').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_categories').select('id,name,kind').order('id').range(from, to))
   ]);
   const today = now.toISOString().slice(0, 10);
   const customTargets = (budgetsResult.data ?? []).filter((t: any) => t.period_type === 'custom' && t.period_start <= today && t.period_end >= today);

@@ -100,7 +100,7 @@
 </script>
 
 <span class="date-control">
-  <input bind:this={input} id={id ?? uid} type="text" {name} bind:value placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" {required} {disabled} autocomplete="off" aria-label={accessibleLabel || undefined} aria-describedby={`${uid}-format`} onclick={() => show()} onkeydown={(event) => { if (event.key === 'ArrowDown' && event.altKey) { event.preventDefault(); void show().then(() => panel.querySelector<HTMLButtonElement>('[tabindex="0"]')?.focus()); } }}/>
+  <input bind:this={input} id={id ?? uid} type="text" {name} bind:value placeholder="YYYY-MM-DD" pattern={'[0-9]{4}-[0-9]{2}-[0-9]{2}'} maxlength="10" {required} {disabled} autocomplete="off" aria-label={accessibleLabel || undefined} aria-describedby={`${uid}-format`} onclick={() => show()} onkeydown={(event) => { if (event.key === 'ArrowDown' && event.altKey) { event.preventDefault(); void show().then(() => panel.querySelector<HTMLButtonElement>('[tabindex="0"]')?.focus()); } }}/>
   <button bind:this={trigger} class="date-trigger" type="button" {disabled} aria-label="Open calendar" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${uid}-calendar`} onclick={() => open ? panel.hidePopover() : show()}><CalendarDays size={18}/></button>
 </span>
 <span class="sr-only" id={`${uid}-format`}>Use YYYY-MM-DD, or open the calendar to choose a date.</span>

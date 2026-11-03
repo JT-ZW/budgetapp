@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { parseDate } from '$lib/calendar';
 import type { Actions, PageServerLoad } from './$types';
 
 function decimal(value: string, allowZero = false): string {
@@ -106,7 +107,7 @@ export const actions: Actions = {
       const amount = decimal(text(form, 'amount'));
       const feeAmount = kind === 'transfer' ? decimal(text(form, 'fee_amount') || '0', true) : '0.00';
       if (!categoryId && kind !== 'transfer') throw new Error('Choose a category for this transaction.');
-      if (!dateValue || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || Number.isNaN(Date.parse(`${dateValue}T12:00:00Z`))) throw new Error('Choose a valid transaction date.');
+      if (!parseDate(dateValue)) throw new Error('Choose a valid transaction date.');
 
       const { data: source, error: sourceError } = await locals.supabase.from('budget_app_wallet_accounts').select('id,currency,wallet_group_id').eq('id', accountId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
       if (sourceError || !source) throw new Error('Choose an active source wallet.');
@@ -116,8 +117,10 @@ export const actions: Actions = {
       let exchangeRate: string | null = null;
       if (kind === 'transfer') {
         if (!destinationId || destinationId === accountId) throw new Error('Choose a different destination wallet.');
-        const { data: destination, error: destinationError } = await locals.supabase.from('budget_app_wallet_accounts').select('id,currency').eq('id', destinationId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
+        const { data: destination, error: destinationError } = await locals.supabase.from('budget_app_wallet_accounts').select('id,currency,wallet_group_id').eq('id', destinationId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
         if (destinationError || !destination) throw new Error('Choose an active destination wallet.');
+        const destinationGroup = await locals.supabase.from('budget_app_wallet_groups').select('id').eq('id', destination.wallet_group_id).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
+        if (destinationGroup.error || !destinationGroup.data) throw new Error('Choose an active destination wallet.');
         if (source.currency === destination.currency) destinationAmount = amount;
         else {
           destinationAmount = decimal(text(form, 'destination_amount'));
@@ -140,7 +143,12 @@ export const actions: Actions = {
         fee_amount: feeAmount, category_id: categoryId || null, description,
         occurred_at: new Date(`${dateValue}T12:00:00Z`).toISOString()
       });
-      if (error && !(shortcutId && error.code === '23505')) throw new Error(error.message);
+      if (error) {
+        const previous = shortcutId && error.code === '23505'
+          ? await locals.supabase.from('budget_app_transactions').select('id').eq('owner_id', auth.user.id).eq('shortcut_request_id', requestId).maybeSingle()
+          : null;
+        if (previous?.error || !previous?.data) throw new Error(error.message);
+      }
     } catch (error) {
       return fail(400, { message: error instanceof Error ? error.message : 'Could not save this transaction.' });
     }

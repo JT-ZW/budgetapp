@@ -9,6 +9,8 @@ let source = ts.transpileModule(readFileSync('src/routes/dashboard/+page.server.
 }).outputText;
 source = source.replaceAll("'@sveltejs/kit'", `'${import.meta.resolve('@sveltejs/kit')}'`)
   .replaceAll("'$lib/server/credit'", `'${asModule('export async function loadCreditCommitments() { return {rows:[], error:null}; }')}'`);
+const pagination = ts.transpileModule(readFileSync('src/lib/server/pagination.ts', 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+source = source.replaceAll("'$lib/server/pagination'", `'${asModule(pagination)}'`);
 const { load } = await import(asModule(source));
 const accounts = [{ id: 'usd', currency: 'USD', opening_balance: '0.00' }, { id: 'zig', currency: 'ZIG', opening_balance: '0.00' }];
 const categories = Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, name: `Category ${i}` }));

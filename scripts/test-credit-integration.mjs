@@ -12,9 +12,12 @@ function moduleUrl(path, replacements = {}) {
 const financeUrl = moduleUrl('src/lib/finance.ts');
 const creditUrl = moduleUrl('src/lib/credit.ts', { './finance': financeUrl });
 const serverUrl = moduleUrl('src/lib/server/credit.ts', { '$lib/credit': creditUrl });
-const replacements = { '$lib/credit': creditUrl, '$lib/server/credit': serverUrl, '@sveltejs/kit': import.meta.resolve('@sveltejs/kit') };
+const calendarUrl = moduleUrl('src/lib/calendar.ts');
+const paginationUrl = moduleUrl('src/lib/server/pagination.ts');
+const replacements = { '$lib/calendar': calendarUrl, '$lib/server/pagination': paginationUrl, '$lib/credit': creditUrl, '$lib/server/credit': serverUrl, '@sveltejs/kit': import.meta.resolve('@sveltejs/kit') };
 const routes = {};
-for (const name of ['credit', 'dashboard', 'budgets', 'transactions', 'insights', 'wallets']) routes[name] = await import(moduleUrl(`src/routes/${name}/+page.server.ts`, replacements));
+for (const name of ['credit', 'dashboard', 'budgets', 'transactions', 'insights', 'wallets', 'investments']) routes[name] = await import(moduleUrl(`src/routes/${name}/+page.server.ts`, replacements));
+routes.investmentAnalysis = await import(moduleUrl('src/routes/investments/analysis/+page.server.ts', replacements));
 const { loadCreditCommitments } = await import(serverUrl);
 const owner = '11111111-1111-4111-8111-111111111111';
 
@@ -29,7 +32,7 @@ function supabaseAdapter(db) {
         if (name === 'budget_app_get_account_balances') return { data: (await db.query('select * from public.budget_app_get_account_balances()')).rows, error: null };
         assert.equal(name, 'budget_app_manage_credit');
         return { data: (await db.query('select public.budget_app_manage_credit($1,$2::jsonb) as id', [args.p_action, JSON.stringify(args.p_data)])).rows[0].id, error: null };
-      } catch (error) { return { data: null, error: { message: error.message } }; }
+      } catch (error) { return { data: null, error: { message: error.message, code: error.code } }; }
     },
     from(table) {
       const conditions = [], params = [], orders = []; let projection = '', limit, offset = 0, exact = false, single = false, mutation;
@@ -74,7 +77,7 @@ function supabaseAdapter(db) {
                 return this[key] instanceof Date && /(_on|_date|period_start|period_end)$/.test(key) ? value.slice(0, 10) : value;
               }));
               return { data: single ? normalized[0] ?? null : normalized, error: null, count };
-            } catch (error) { return { data: null, error: { message: error.message }, count: null }; }
+            } catch (error) { return { data: null, error: { message: error.message, code: error.code }, count: null }; }
           })().then(resolve, reject);
         }
       }; return q;
@@ -87,7 +90,7 @@ try {
   await db.exec(`create role authenticated; create role anon; create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon;`);
-  for (const name of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql', '0007_app_sessions.sql', '0008_restrict_anonymous_access.sql', '0009_lending.sql', '0010_custom_budget_periods.sql']) await db.exec(readFileSync('supabase/migrations/' + name, 'utf8').replace('create extension if not exists pgcrypto;', ''));
+  for (const name of ['0001_initial_schema.sql', '0002_investments.sql', '0003_investment_opening_balances.sql', '0004_stock_purchase_workflows.sql', '0005_stock_brokerage_purchases.sql', '0006_credit.sql', '0007_app_sessions.sql', '0008_restrict_anonymous_access.sql', '0009_lending.sql', '0010_custom_budget_periods.sql', '0011_transaction_shortcuts.sql']) await db.exec(readFileSync('supabase/migrations/' + name, 'utf8').replace('create extension if not exists pgcrypto;', ''));
   await db.query('insert into auth.users values ($1)', [owner]);
   await db.query('update public.budget_app_wallet_accounts set opening_balance=1000 where owner_id=$1', [owner]);
   const accounts = (await db.query('select * from public.budget_app_wallet_accounts where owner_id=$1', [owner])).rows;
@@ -249,6 +252,72 @@ try {
   const fullHistory = await loadCreditCommitments(fake);
   assert.equal(fullHistory.error, null); assert.equal(fullHistory.rows[0].outstanding, '0.01');
   console.log('PASS: complete repayment histories are loaded past the 1,000-row API limit');
+
+  // Exercise real transaction actions, including the shortcut retry path.
+  const submitAction = async (route, action, values) => {
+    const body = new FormData();
+    for (const [key, value] of Object.entries(values)) body.set(key, value);
+    try { return await routes[route].actions[action]({ locals, request: new Request('http://test.invalid', { method: 'POST', body }) }); }
+    catch (error) { if (error.status === 303) return error; throw error; }
+  };
+  const expense = { kind: 'expense', account_id: bank.id, category_id: category, amount: '0.10', occurred_on: '2024-02-29', description: 'Audit date check' };
+  assert.equal((await submitAction('transactions', 'create', expense)).status, 303);
+  for (const occurred_on of ['2026-02-30', '2026-04-31', '0000-01-01', '03/11/2026']) {
+    assert.equal((await submitAction('transactions', 'create', { ...expense, occurred_on })).status, 400);
+    assert.equal((await submitAction('investments', 'valuation', { investment_account_id: investment, closing_equity: '1', valuation_date: occurred_on })).status, 400);
+  }
+  const retryToken = '44444444-4444-4444-8444-444444444444';
+  const shortcut = (await db.query(`insert into public.budget_app_transaction_shortcuts(owner_id,name,kind,amount,account_id,category_id)
+    values ($1,'Audit transport','expense',2,$2,$3) returning id`, [owner, bank.id, category])).rows[0].id;
+  const shortcutRequest = { shortcut_id: shortcut, shortcut_request_id: retryToken, occurred_on: today, amount: '999', account_id: zig.id };
+  assert.equal((await submitAction('transactions', 'create', shortcutRequest)).status, 303);
+  assert.equal((await submitAction('transactions', 'create', shortcutRequest)).status, 303);
+  const recorded = (await db.query('select amount,account_id from public.budget_app_transactions where shortcut_request_id=$1', [retryToken])).rows;
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].amount, '2.00', 'server loads saved shortcut values instead of trusting browser fields');
+  assert.equal(recorded[0].account_id, bank.id);
+  const noMatchingRetry = { ...supabase, from(table) {
+    if (table !== 'budget_app_transactions') return supabase.from(table);
+    return { insert: async () => ({ error: { code: '23505', message: 'Unrelated uniqueness failure' } }), select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data: null, error: null }) };
+  } };
+  const retryForm = new FormData();
+  for (const [key, value] of Object.entries({ ...shortcutRequest, shortcut_request_id: '55555555-5555-4555-8555-555555555555' })) retryForm.set(key, value);
+  const unrelatedFailure = await routes.transactions.actions.create({ locals: { supabase: noMatchingRetry }, request: new Request('http://test.invalid', { method: 'POST', body: retryForm }) });
+  assert.equal(unrelatedFailure.status, 400, 'an unrelated uniqueness failure must not appear successful');
+  await db.query('update public.budget_app_wallet_groups set archived_at=now() where id=$1', [project]);
+  assert.equal((await submitAction('transactions', 'create', { kind: 'transfer', account_id: bank.id, destination_account_id: projectAccount, amount: '1', occurred_on: today })).status, 400);
+  await db.query('update public.budget_app_wallet_groups set archived_at=null where id=$1', [project]);
+  console.log('PASS: real transaction saves, strict dates, investment date rejection, shortcut retries, browser tampering and archived transfer destinations');
+
+  const { loadAllRows } = await import(paginationUrl);
+  const pagedRows = Array.from({ length: 2001 }, (_, id) => ({ id }));
+  const ranges = [];
+  const fullRows = await loadAllRows(async (from, to) => { ranges.push([from, to]); return { data: pagedRows.slice(from, to + 1), error: null }; });
+  assert.equal(fullRows.data.length, 2001);
+  assert.deepEqual(ranges, [[0, 999], [1000, 1999], [2000, 2999]]);
+  const failedRows = await loadAllRows(async (from, to) => from ? { data: null, error: { message: 'Page unavailable' } } : { data: pagedRows.slice(from, to + 1), error: null });
+  assert.equal(failedRows.data, null, 'partial histories must not be presented as complete');
+  assert.equal(failedRows.error.message, 'Page unavailable');
+  // Confirm the real Overview and Insights loaders count the long ledger.
+  const allExpenses = (await db.query(`select sum(amount)::text as total from public.budget_app_transactions where kind='expense' and account_id=$1 and occurred_at >= $2 and occurred_at < $3`, [bank.id, `${start}T00:00:00Z`, `${new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString()}`])).rows[0].total;
+  const overview = await request('dashboard');
+  assert.equal(overview.summary.USD.spending, Number(allExpenses).toFixed(2));
+  const trends = await request('insights');
+  assert.equal(trends.loadError, null);
+  const investmentHistory = await routes.investments.load({ locals });
+  assert.equal(investmentHistory.loadError, null);
+  const originalDeposits = investmentHistory.accounts.find((account) => account.id === investment).deposits;
+  await db.query(`insert into public.budget_app_investment_cash_movements(owner_id,investment_account_id,wallet_account_id,kind,amount,occurred_at)
+    select $1,$2,$3,'deposit',0.01,$4 from generate_series(1,1001)`, [owner, investment, bank.id, `${today}T12:00:00Z`]);
+  const longInvestmentHistory = await routes.investments.load({ locals });
+  assert.equal(longInvestmentHistory.loadError, null);
+  assert.equal(longInvestmentHistory.accounts.find((account) => account.id === investment).deposits.toFixed(2), (originalDeposits + 10.01).toFixed(2));
+  const analysis = await routes.investmentAnalysis.load({ locals });
+  assert.equal(analysis.loadError, null);
+  assert.equal(analysis.movements.filter((movement) => movement.investment_account_id === investment).length, 1002);
+  const largeTrends = await request('insights');
+  assert.equal(largeTrends.loadError, null);
+  console.log('PASS: complete multi-page histories, fail-closed partial loads, Overview/Insights and investment loaders');
 
   const feedbackUrl = moduleUrl('src/lib/investments/feedback.ts', { 'svelte/store': import.meta.resolve('svelte/store') });
   const { investmentFeedback, handleInvestmentSubmit } = await import(feedbackUrl);

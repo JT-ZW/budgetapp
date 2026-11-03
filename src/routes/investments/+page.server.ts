@@ -1,4 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { parseDate } from '$lib/calendar';
+import { loadAllRows } from '$lib/server/pagination';
 import type { Actions, PageServerLoad } from './$types';
 
 function text(form: FormData, key: string) { return String(form.get(key) ?? '').trim(); }
@@ -10,7 +12,7 @@ function amount(value: string, zero = false, scale = 2) {
   return v;
 }
 function dateValue(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T12:00:00Z`))) throw new Error('Choose a valid date.');
+  if (!parseDate(value)) throw new Error('Choose a valid date.');
   return value;
 }
 function handleError(error: unknown, fallback: string) {
@@ -23,21 +25,20 @@ export const load: PageServerLoad = async ({ locals }) => {
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) redirect(303, '/');
   const [accountsResult, walletsResult] = await Promise.all([
-    supabase.from('budget_app_investment_accounts').select('*').order('created_at'),
-    supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,archived_at,opening_balance,wallet_group:budget_app_wallet_groups(name,kind,archived_at)').order('currency')
+    loadAllRows((from, to) => supabase.from('budget_app_investment_accounts').select('*').order('created_at').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,archived_at,opening_balance,wallet_group:budget_app_wallet_groups(name,kind,archived_at)').order('currency').order('id').range(from, to))
   ]);
   const accounts = accountsResult.data ?? [];
   const accountIds = accounts.map((a) => a.id);
-  const [movementsResult, countersResult, tradesResult, pricesResult, valuesResult] = accountIds.length ? await Promise.all([
-    supabase.from('budget_app_investment_cash_movements').select('*').in('investment_account_id', accountIds).order('occurred_at', { ascending: false }),
-    supabase.from('budget_app_investment_counters').select('*').in('investment_account_id', accountIds).order('company_name'),
-    supabase.from('budget_app_investment_trades').select('*').in('investment_account_id', accountIds).order('occurred_at', { ascending: false }),
-    supabase.from('budget_app_investment_prices').select('*').order('price_date', { ascending: false }),
-    supabase.from('budget_app_forex_valuations').select('*').in('investment_account_id', accountIds).order('valuation_date', { ascending: false })
-  ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+  const [movementsResult, countersResult, tradesResult, valuesResult] = accountIds.length ? await Promise.all([
+    loadAllRows((from, to) => supabase.from('budget_app_investment_cash_movements').select('*').in('investment_account_id', accountIds).order('occurred_at', { ascending: false }).order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_investment_counters').select('*').in('investment_account_id', accountIds).order('company_name').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_investment_trades').select('*').in('investment_account_id', accountIds).order('occurred_at', { ascending: false }).order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_forex_valuations').select('*').in('investment_account_id', accountIds).order('valuation_date', { ascending: false }).order('id').range(from, to))
+  ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
   const counters = countersResult.data ?? [];
   const counterIds = counters.map((c) => c.id);
-  const prices = counterIds.length ? await supabase.from('budget_app_investment_prices').select('*').in('counter_id', counterIds).order('price_date', { ascending: false }) : { data: [], error: null };
+  const prices = counterIds.length ? await loadAllRows((from, to) => supabase.from('budget_app_investment_prices').select('*').in('counter_id', counterIds).order('price_date', { ascending: false }).order('id').range(from, to)) : { data: [], error: null };
   const latestPrice = new Map<string, any>();
   for (const row of prices.data ?? []) if (!latestPrice.has(row.counter_id)) latestPrice.set(row.counter_id, row);
   const trades = tradesResult.data ?? [];
@@ -80,7 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     return { ...account, movements: accountMovements, latestValuation, valuationHistory: valuations.filter((v) => v.investment_account_id === account.id).slice(0, 30), deposits, withdrawals, netContribution, currentCash, positions: accountPositions, sharesValue, unpricedPositionCost, unpricedPositionCount: unpricedPositions.length, valuationPending: account.kind === 'stocks' && unpricedPositions.length > 0, totalValue, realized, stockUnrealized, gain,
       returnPercent: netContribution ? gain / netContribution * 100 : null };
   });
-  const loadError = [accountsResult, walletsResult, movementsResult, countersResult, tradesResult, pricesResult, valuesResult, prices].find((r: any) => r.error)?.error?.message ?? null;
+  const loadError = [accountsResult, walletsResult, movementsResult, countersResult, tradesResult, valuesResult, prices].find((r: any) => r.error)?.error?.message ?? null;
   return { accounts: enrichedAccounts, wallets: (walletsResult.data ?? []).filter((w: any) => !w.archived_at && !w.wallet_group?.archived_at), counters, positions, trades, movements, valuations, prices: prices.data ?? [], today: new Date().toISOString().slice(0, 10), loadError };
 };
 
@@ -214,10 +215,12 @@ export const actions: Actions = {
       const { data: wallet } = await locals.supabase.from('budget_app_wallet_accounts').select('currency').eq('id', walletId).eq('owner_id', auth.user.id).is('archived_at', null).maybeSingle();
       if (!account || !wallet || account.currency !== wallet.currency || !['deposit','withdrawal'].includes(kind)) throw new Error('Choose a matching investment account and personal wallet.');
       if (kind === 'withdrawal') {
-        const { data: history } = await locals.supabase.from('budget_app_investment_cash_movements').select('kind,amount,occurred_at').eq('investment_account_id', accountId);
+        const { data: history, error: historyError } = await loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_cash_movements').select('kind,amount,occurred_at').eq('investment_account_id', accountId).order('id').range(from, to));
+        if (historyError) throw new Error('Investment history could not be loaded. Try again.');
         let available = 0;
         if (account.kind === 'stocks') {
-          const { data: stockTrades } = await locals.supabase.from('budget_app_investment_trades').select('kind,quantity,unit_price,fees').eq('investment_account_id', accountId);
+          const { data: stockTrades, error: tradesError } = await loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_trades').select('kind,quantity,unit_price,fees').eq('investment_account_id', accountId).order('id').range(from, to));
+          if (tradesError) throw new Error('Trade history could not be loaded. Try again.');
           available = Number(account.opening_capital ?? 0) + (history ?? []).reduce((n, row) => n + (row.kind === 'deposit' ? 1 : -1) * Number(row.amount), 0) + (stockTrades ?? []).filter((row) => row.kind === 'buy' || row.kind === 'sell').reduce((n, row) => n + (row.kind === 'buy' ? -1 : 1) * (Number(row.quantity) * Number(row.unit_price)) - Number(row.fees), 0);
         } else {
           const { data: closing } = await locals.supabase.from('budget_app_forex_valuations').select('valuation_date,closing_equity').eq('investment_account_id', accountId).lte('valuation_date', date).order('valuation_date', { ascending: false }).limit(1).maybeSingle();

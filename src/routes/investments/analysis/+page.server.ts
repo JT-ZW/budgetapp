@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { loadAllRows } from '$lib/server/pagination';
 import type { PageServerLoad } from './$types';
 
 type Row = Record<string, any>;
@@ -13,11 +14,11 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (authError || !auth.user) redirect(303, '/');
 
   const [accountsResult, countersResult, tradesResult, movementsResult, valuesResult] = await Promise.all([
-    supabase.from('budget_app_investment_accounts').select('*').order('created_at'),
-    supabase.from('budget_app_investment_counters').select('*').order('company_name'),
-    supabase.from('budget_app_investment_trades').select('*').order('occurred_at'),
-    supabase.from('budget_app_investment_cash_movements').select('*').order('occurred_at'),
-    supabase.from('budget_app_forex_valuations').select('*').order('valuation_date')
+    loadAllRows((from, to) => supabase.from('budget_app_investment_accounts').select('*').order('created_at').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_investment_counters').select('*').order('company_name').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_investment_trades').select('*').order('occurred_at').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_investment_cash_movements').select('*').order('occurred_at').order('id').range(from, to)),
+    loadAllRows((from, to) => supabase.from('budget_app_forex_valuations').select('*').order('valuation_date').order('id').range(from, to))
   ]);
   const accounts: Row[] = accountsResult.data ?? [];
   const counters: Row[] = countersResult.data ?? [];
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const valuations: Row[] = valuesResult.data ?? [];
   const counterIds = counters.map((counter) => counter.id);
   const pricesResult = counterIds.length
-    ? await supabase.from('budget_app_investment_prices').select('*').in('counter_id', counterIds).order('price_date')
+    ? await loadAllRows((from, to) => supabase.from('budget_app_investment_prices').select('*').in('counter_id', counterIds).order('price_date').order('id').range(from, to))
     : { data: [], error: null };
   const prices: Row[] = pricesResult.data ?? [];
   const errors = [accountsResult, countersResult, tradesResult, movementsResult, valuesResult, pricesResult].filter((result: any) => result.error).map((result: any) => result.error.message);

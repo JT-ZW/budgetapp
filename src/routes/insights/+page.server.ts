@@ -1,4 +1,6 @@
 import { redirect } from '@sveltejs/kit';
+import { parseDate } from '$lib/calendar';
+import { loadAllRows } from '$lib/server/pagination';
 import type { PageServerLoad } from './$types';
 import { creditWalletDelta } from '$lib/credit';
 function minor(value: string): bigint { const normalized = String(value).trim(); const negative = normalized.startsWith('-'); const [whole, fraction = ''] = normalized.replace(/^-/, '').split('.'); const amount = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0').slice(0, 2)); return negative ? -amount : amount; }
@@ -9,17 +11,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const now = new Date(); const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)); const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
   const startString = start.toISOString(); const endString = new Date(Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() + 1, 1)).toISOString();
   const [groupsResult, accountsResult, categoriesResult, txResult, balancesResult, investmentAccountsResult, countersResult, tradesResult, pricesResult, forexValuesResult, investmentMovementsResult] = await Promise.all([
-    locals.supabase.from('budget_app_wallet_groups').select('id,name,kind,archived_at'),
-    locals.supabase.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,opening_balance,archived_at'),
-    locals.supabase.from('budget_app_categories').select('id,name,kind'),
-    locals.supabase.from('budget_app_transactions').select('kind,account_id,amount,fee_amount,category_id,occurred_at').gte('occurred_at', startString).lt('occurred_at', endString).order('occurred_at'),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_wallet_groups').select('id,name,kind,archived_at').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_wallet_accounts').select('id,wallet_group_id,currency,channel,opening_balance,archived_at').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_categories').select('id,name,kind').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_transactions').select('kind,account_id,amount,fee_amount,category_id,occurred_at').gte('occurred_at', startString).lt('occurred_at', endString).order('occurred_at').order('id').range(from, to)),
     locals.supabase.rpc('budget_app_get_account_balances'),
-    locals.supabase.from('budget_app_investment_accounts').select('*').order('created_at'),
-    locals.supabase.from('budget_app_investment_counters').select('*').order('company_name'),
-    locals.supabase.from('budget_app_investment_trades').select('*').order('occurred_at'),
-    locals.supabase.from('budget_app_investment_prices').select('*').order('price_date'),
-    locals.supabase.from('budget_app_forex_valuations').select('*').order('valuation_date'),
-    locals.supabase.from('budget_app_investment_cash_movements').select('*').order('occurred_at')
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_accounts').select('*').order('created_at').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_counters').select('*').order('company_name').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_trades').select('*').order('occurred_at').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_prices').select('*').order('price_date').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_forex_valuations').select('*').order('valuation_date').order('id').range(from, to)),
+    loadAllRows((from, to) => locals.supabase!.from('budget_app_investment_cash_movements').select('*').order('occurred_at').order('id').range(from, to))
   ]);
   const accounts = Object.fromEntries((accountsResult.data ?? []).map((a: any) => [a.id, a]));
   const groups = Object.fromEntries((groupsResult.data ?? []).map((g: any) => [g.id, g]));
@@ -127,7 +129,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const defaultFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
   const dateParam = (name: string, fallback: string) => {
     const value = url.searchParams.get(name) ?? fallback;
-    return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? value : fallback;
+    return parseDate(value) ? value : fallback;
   };
   const statementFrom = dateParam('from', defaultFrom);
   const statementTo = dateParam('to', today);
