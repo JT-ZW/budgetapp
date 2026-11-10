@@ -1,7 +1,7 @@
 <script lang="ts">
   import Brand from '$lib/components/Brand.svelte';
   import { page } from '$app/state';
-  import { Home, WalletCards, ArrowLeftRight, Grid2X2, ChartPie, TrendingUp, Target, CreditCard, Settings2, LogOut, X, ChevronRight } from 'lucide-svelte';
+  import { Home, WalletCards, ArrowLeftRight, Grid2X2, ChartPie, TrendingUp, Target, CreditCard, Settings2, LogOut, X, ChevronRight, FolderKanban } from 'lucide-svelte';
   let menu: HTMLDialogElement;
   const primary = [
     { href: '/dashboard', label: 'Home', icon: Home },
@@ -9,6 +9,7 @@
     { href: '/transactions', label: 'Activity', icon: ArrowLeftRight }
   ];
   const more = [
+    { href: '/projects', label: 'Projects', detail: 'Funding, costs and revenue', icon: FolderKanban },
     { href: '/insights', label: 'Insights', detail: 'Understand your money', icon: ChartPie },
     { href: '/budgets', label: 'Budgets', detail: 'Make room for your goals', icon: Target },
     { href: '/investments', label: 'Investments', detail: 'Keep an eye on growth', icon: TrendingUp },

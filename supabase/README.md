@@ -28,3 +28,7 @@ Balances are derived from the ledger: opening balance + income + incoming transf
 ## Transaction shortcuts
 
 Apply `migrations/0011_transaction_shortcuts.sql` after the existing migrations. Manage saved income/spending shortcuts in Settings, then select and confirm them on Transactions. Shortcuts never run automatically. Each confirmation has a unique request ID to prevent duplicate ledger entries on retries.
+
+## Projects
+
+Apply `migrations/0012_projects.sql` after 0011. Projects link one existing dedicated wallet, classify selected existing costs/revenue without duplicating cash, and support history-only opening entries. Contributions use wallet transfers; wallet loans use the existing Credit ledger. See `output/projects/PROJECTS_RELEASE.md` for setup, accounting boundaries, validation, and installation. The migration itself does not create projects or alter existing financial balances.

@@ -15,10 +15,12 @@
 		"test:credit": "node scripts/test-credit.mjs --math-only",
 		"test:sessions": "node scripts/test-sessions.mjs",
 		"test:dashboard": "node scripts/test-dashboard.mjs",
-		"test": "node scripts/test-credit.mjs && node scripts/test-credit-integration.mjs && node scripts/test-sessions.mjs && node scripts/test-dashboard.mjs && node scripts/test-database-security.mjs && node scripts/test-calendar.mjs",
+		"test": "node scripts/test-credit.mjs && node scripts/test-credit-integration.mjs && node scripts/test-sessions.mjs && node scripts/test-dashboard.mjs && node scripts/test-database-security.mjs && node scripts/test-calendar.mjs && node scripts/test-projects.mjs",
 		"verify": "npm run check && npm test && npm run build",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test:calendar": "node scripts/test-calendar.mjs"
+		"test:calendar": "node scripts/test-calendar.mjs",
+		"test:projects": "node scripts/test-projects.mjs",
+		"check:projects": "node --env-file=.env scripts/check-project-installation.mjs"
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "0.5.10",

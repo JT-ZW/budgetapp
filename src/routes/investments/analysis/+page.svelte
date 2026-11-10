@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ProjectNavLink from '$lib/components/ProjectNavLink.svelte';
   import Brand from '$lib/components/Brand.svelte';
   import { ArrowLeftRight, BarChart3, BriefcaseBusiness, CircleDollarSign, LayoutDashboard, LogOut, Settings2, Target, TrendingUp, WalletCards } from 'lucide-svelte';
   import InvestmentNav from '$lib/components/InvestmentNav.svelte';
@@ -36,7 +37,7 @@
 
 <svelte:head><title>Investment Analysis — Homwe</title><meta name="description" content="Detailed performance, allocation, stock history and forex risk analysis." /></svelte:head>
 <div class="app-frame">
-  <aside class="sidebar"><Brand /><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link active" href="/investments"><TrendingUp size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
+  <aside class="sidebar"><Brand /><div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a><div class="sidebar-label side-label-spaced">Your money</div><a class="side-link" href="/wallets"><WalletCards size={18}/> Wallets</a><ProjectNavLink/><a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a><a class="side-link active" href="/investments"><TrendingUp size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a><a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a><div class="sidebar-bottom"><a class="side-link" href="/settings"><Settings2 size={18}/> Settings</a><form method="POST" action="/logout"><button class="side-link" type="submit"><LogOut size={18}/> Sign out</button></form></div></aside>
   <main class="main-area">
     <header class="topbar"><div><p class="date-label">Portfolio performance and risk</p><p class="topbar-title">Investment Analysis</p></div></header>
     <InvestmentNav active="analysis" />

@@ -10,7 +10,7 @@ for (const path of ['/', '/forgot-password']) {
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
 }
-for (const path of ['/dashboard', '/wallets', '/transactions', '/budgets', '/insights', '/credit', '/settings', '/investments', '/investments/accounts', '/investments/stocks', '/investments/forex', '/investments/transfers', '/investments/analysis', '/reset-password']) {
+for (const path of ['/projects', '/projects/11111111-1111-4111-8111-111111111111', '/dashboard', '/wallets', '/transactions', '/budgets', '/insights', '/credit', '/settings', '/investments', '/investments/accounts', '/investments/stocks', '/investments/forex', '/investments/transfers', '/investments/analysis', '/reset-password']) {
   const response = await get(path);
   assert.equal(response.status, 303, `${path} must require sign-in`);
   assert.match(response.headers.get('location') ?? '', /^\/(?:\?|$)/);
@@ -21,4 +21,4 @@ for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
 }
 assert.equal((await get('/auth/callback?next=http://[')).status, 303);
 assert.equal((await get('/auth/callback?next=https://untrusted.example')).headers.get('location'), '/?auth=confirmation-failed');
-console.log('PASS: public pages, security headers, 14 protected pages, session rejection, cross-origin requests and malformed callbacks');
+console.log('PASS: public pages, security headers, 16 protected pages, session rejection, cross-origin requests and malformed callbacks');

@@ -25,7 +25,7 @@ for (const setup of ['migrations', 'sql-editor']) {
       has_table_privilege('anon',c.oid,'SELECT,INSERT,UPDATE,DELETE') as anon_access
       from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname='public' and c.relkind='r' and starts_with(c.relname,'budget_app_')`)).rows;
-    assert.equal(tables.length, 17);
+    assert.equal(tables.length, 21);
     assert.ok(tables.every((table) => table.rls && !table.anon_access), 'all app tables need RLS and no anonymous grants');
     const exposed = (await db.query(`select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='public' and starts_with(p.proname,'budget_app_') and has_function_privilege('anon',p.oid,'EXECUTE')`)).rows;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ProjectNavLink from '$lib/components/ProjectNavLink.svelte';
   import Brand from '$lib/components/Brand.svelte';
   import { ArrowLeftRight, BarChart3, CreditCard, LayoutDashboard, LogOut, Plus, Settings2, Target, WalletCards } from 'lucide-svelte';
   import WalletPocket from '$lib/components/WalletPocket.svelte';
@@ -15,7 +16,7 @@
     <Brand />
     <div class="sidebar-label">Workspace</div><a class="side-link" href="/dashboard"><LayoutDashboard size={18}/> Overview</a>
     <div class="sidebar-label side-label-spaced">Your money</div>
-    <a class="side-link active" href="/wallets"><CreditCard size={18}/> Wallets <span class="nav-count">{data.groups.length}</span></a>
+    <a class="side-link active" href="/wallets"><CreditCard size={18}/> Wallets <span class="nav-count">{data.groups.length}</span></a><ProjectNavLink/>
     <a class="side-link" href="/transactions"><ArrowLeftRight size={18}/> Transactions</a>
     <a class="side-link" href="/investments"><WalletCards size={18}/> Investments</a><a class="side-link" href="/credit"><WalletCards size={18}/> Credit</a><a class="side-link" href="/budgets"><Target size={18}/> Budgets</a>
     <a class="side-link" href="/insights"><BarChart3 size={18}/> Insights</a>
